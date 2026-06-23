@@ -28,7 +28,7 @@ export default function Navbar() {
 
   return (
     <nav className="flex items-center justify-between px-6 h-12 border-b border-gray-100 bg-white sticky top-0 z-50">
-      <Link href="/" className="text-[15px] font-medium font-serif text-gray-900 hover:text-gray-600">
+      <Link href="/" className="text-[35px] font-medium font-serif text-gray-900 hover:text-gray-600">
         Three Lines
       </Link>
 
