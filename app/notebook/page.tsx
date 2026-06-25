@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { createClient } from '@/lib/supabase'
 import { BOOKS, TRACKS, getChapter } from '@/lib/data'
 import type { User } from '@supabase/supabase-js'
@@ -28,26 +28,30 @@ export default function NotebookPage() {
   const supabase = createClient()
   const [user, setUser] = useState<User | null>(null)
 
-  // Navigation state
-  const [bookId, setBookId]       = useState('john')
+  // Navigation
+  const [bookId, setBookId]         = useState('john')
   const [chapterNum, setChapterNum] = useState(1)
 
-  // UI state
-  const [mode, setMode]               = useState<Mode>('study')
+  // UI
+  const [mode, setMode]                 = useState<Mode>('study')
   const [activeTracks, setActiveTracks] = useState<Set<string>>(new Set(TRACKS.map(t => t.id)))
-  const [communityFilter, setCommunityFilter] = useState<string>('all')
 
-  // Data
-  const [notes, setNotes]             = useState<Record<string, string>>({})
+  // Passage text cache (keyed by esvRef)
+  const [passageTexts, setPassageTexts] = useState<Record<string, string>>({})
+  const [loadingPassages, setLoadingPassages] = useState<Set<string>>(new Set())
+
+  // Notes
+  const [notes, setNotes]               = useState<Record<string, string>>({})
   const [communityNotes, setCommunityNotes] = useState<CommunityNote[]>([])
-  const [replies, setReplies]         = useState<Record<string, Reply[]>>({})
-  const [openThreads, setOpenThreads] = useState<Set<string>>(new Set())
-  const [replyText, setReplyText]     = useState<Record<string, string>>({})
+  const [replies, setReplies]           = useState<Record<string, Reply[]>>({})
+  const [openThreads, setOpenThreads]   = useState<Set<string>>(new Set())
+  const [replyText, setReplyText]       = useState<Record<string, string>>({})
+  const [chaptersWithNotes, setChaptersWithNotes] = useState<Set<number>>(new Set())
 
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
-  const book    = BOOKS.find(b => b.id === bookId)!
-  const chapter = getChapter(bookId, chapterNum)
+  const book          = BOOKS.find(b => b.id === bookId)!
+  const chapter       = getChapter(bookId, chapterNum)
   const totalChapters = book.chapters.length
 
   // Auth
@@ -59,7 +63,57 @@ export default function NotebookPage() {
     return () => subscription.unsubscribe()
   }, [])
 
-  // Load own notes when book/chapter changes
+  // Fetch passage texts for current chapter
+  useEffect(() => {
+    if (!chapter) return
+    chapter.chunks.forEach(chunk => {
+      if (passageTexts[chunk.esvRef] || loadingPassages.has(chunk.esvRef)) return
+      setLoadingPassages(prev => new Set(prev).add(chunk.esvRef))
+      fetch(`/api/passage?book=${bookId}&chapter=${chapterNum}&ref=${encodeURIComponent(chunk.esvRef)}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.text) {
+            setPassageTexts(prev => ({ ...prev, [chunk.esvRef]: data.text }))
+          }
+          setLoadingPassages(prev => { const n = new Set(prev); n.delete(chunk.esvRef); return n })
+        })
+        .catch(() => {
+          setLoadingPassages(prev => { const n = new Set(prev); n.delete(chunk.esvRef); return n })
+        })
+    })
+  }, [bookId, chapterNum, chapter])
+
+  // Load which chapters have notes (progress dots)
+  useEffect(() => {
+    if (!user) return
+    supabase.from('notes')
+      .select('passage_ref')
+      .eq('user_id', user.id)
+      .like('passage_ref', `${bookId}:%`)
+      .neq('content', '')
+      .then(({ data }) => {
+        if (!data) return
+        const chNums = new Set<number>()
+        data.forEach(n => {
+          const parts = n.passage_ref.split(':')
+          const ch = parseInt(parts[1])
+          if (!isNaN(ch)) chNums.add(ch)
+        })
+        setChaptersWithNotes(chNums)
+      })
+  }, [user, bookId])
+
+  // Live progress: also check current chapter's local notes
+  const chaptersWithNotesLive = useMemo(() => {
+    const live = new Set(chaptersWithNotes)
+    const hasContent = Object.entries(notes).some(([key, val]) =>
+      key.startsWith(`${bookId}:${chapterNum}:`) && val.trim().length > 0
+    )
+    if (hasContent) live.add(chapterNum)
+    return live
+  }, [chaptersWithNotes, notes, bookId, chapterNum])
+
+  // Load own notes when chapter changes
   useEffect(() => {
     if (!user) return
     const prefix = `${bookId}:${chapterNum}:`
@@ -75,7 +129,7 @@ export default function NotebookPage() {
       })
   }, [user, bookId, chapterNum])
 
-  // Load community notes when switching to community mode
+  // Load community notes
   useEffect(() => {
     if (mode !== 'community') return
     const prefix = `${bookId}:${chapterNum}:`
@@ -99,7 +153,7 @@ export default function NotebookPage() {
         passage_ref: passageRef,
         track_id: trackId,
         content: value,
-        is_public: true, // notes are public by default so community view works
+        is_public: true,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id,passage_ref,track_id' })
     }, 800)
@@ -146,12 +200,9 @@ export default function NotebookPage() {
     el.style.height = el.scrollHeight + 'px'
   }
 
-  // Passage ref format: "john:1:1:1-5"  (bookId:ch:verseRef)
   const passageKey = (bookId: string, ch: number, ref: string) => `${bookId}:${ch}:${ref}`
 
-  const filteredCommunityNotes = communityFilter === 'all'
-    ? communityNotes
-    : communityNotes.filter(n => n.track_id === communityFilter)
+  const filteredCommunityNotes = communityNotes.filter(n => activeTracks.has(n.track_id))
 
   if (!chapter) {
     return <div className="p-8 text-sm text-gray-400">Chapter not found.</div>
@@ -160,10 +211,11 @@ export default function NotebookPage() {
   return (
     <div className="flex h-[calc(100vh-48px)]">
 
-      {/* Left sidebar — book + chapter nav */}
-      <aside className="w-44 border-r border-gray-100 flex flex-col flex-shrink-0 overflow-y-auto">
+      {/* Sidebar */}
+      <aside className="w-52 border-r border-gray-100 flex flex-col flex-shrink-0">
+
         {/* Book picker */}
-        <div className="p-3 border-b border-gray-100">
+        <div className="p-3 border-b border-gray-100 flex-shrink-0">
           <select
             className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 bg-white text-gray-700 outline-none"
             value={bookId}
@@ -176,23 +228,41 @@ export default function NotebookPage() {
         </div>
 
         {/* Chapter list */}
-        <div className="p-2 flex-1">
-          <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider px-2 py-1">Chapters</p>
-          <div className="grid grid-cols-4 gap-1">
-            {book.chapters.map(ch => (
+        <div className="flex-1 overflow-y-auto">
+          {book.chapters.map(ch => {
+            const isActive = chapterNum === ch.ch
+            const hasNotes = chaptersWithNotesLive.has(ch.ch)
+            // Use cached passage text for subtitle if available
+            const firstChunk = ch.chunks[0]
+            const firstText  = firstChunk ? (passageTexts[firstChunk.esvRef] ?? '') : ''
+            const subtitle   = firstText.length > 0
+              ? firstText.replace(/\[\d+\]/g, '').replace(/\s+/g, ' ').trim().slice(0, 50) + '...'
+              : firstChunk?.esvRef ?? ''
+
+            return (
               <button
                 key={ch.ch}
                 onClick={() => setChapterNum(ch.ch)}
-                className={`h-8 rounded text-xs font-medium transition-colors ${
-                  chapterNum === ch.ch
-                    ? 'bg-gray-900 text-white'
-                    : 'text-gray-400 hover:bg-gray-100'
+                className={`w-full text-left px-3 py-2.5 border-b border-gray-50 transition-colors flex gap-2.5 items-start ${
+                  isActive ? 'bg-gray-50' : 'hover:bg-gray-50'
                 }`}
               >
-                {ch.ch}
+                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5 transition-colors ${
+                  hasNotes ? 'bg-gray-400' : 'bg-gray-200'
+                }`} />
+                <div className="min-w-0">
+                  <div className={`text-xs font-medium leading-tight mb-0.5 ${
+                    isActive ? 'text-gray-900' : 'text-gray-600'
+                  }`}>
+                    Chapter {ch.ch}
+                  </div>
+                  <div className="text-[10px] text-gray-400 leading-snug line-clamp-2">
+                    {subtitle}
+                  </div>
+                </div>
               </button>
-            ))}
-          </div>
+            )
+          })}
         </div>
       </aside>
 
@@ -211,16 +281,16 @@ export default function NotebookPage() {
                 disabled={chapterNum <= 1}
                 onClick={() => setChapterNum(c => c - 1)}
                 className="px-2 py-1 rounded hover:bg-gray-100 disabled:opacity-30"
-              >← prev</button>
+              > &larr; {book.name} {chapterNum - 1}</button>
               <button
                 disabled={chapterNum >= totalChapters}
                 onClick={() => setChapterNum(c => c + 1)}
                 className="px-2 py-1 rounded hover:bg-gray-100 disabled:opacity-30"
-              >next →</button>
+              >{book.name} {chapterNum + 1} &rarr;</button>
             </div>
           </div>
 
-          {/* Mode toggle */}
+          {/* Mode toggle + track pills */}
           <div className="flex items-center gap-3 mb-5 flex-wrap">
             <div className="flex border border-gray-200 rounded-md overflow-hidden">
               {(['study', 'community'] as Mode[]).map(m => (
@@ -236,7 +306,6 @@ export default function NotebookPage() {
               ))}
             </div>
 
-            {/* Track filter pills — study mode */}
             {mode === 'study' && (
               <div className="flex gap-1.5 flex-wrap">
                 {TRACKS.map(t => (
@@ -256,40 +325,31 @@ export default function NotebookPage() {
               </div>
             )}
 
-            {/* Track filter — community mode */}
             {mode === 'community' && (
-              <div className="flex gap-1.5 flex-wrap">
-                <button
-                  onClick={() => setCommunityFilter('all')}
-                  className={`px-3 py-1 rounded-full border text-xs transition-colors ${
-                    communityFilter === 'all'
-                      ? 'bg-gray-100 border-gray-300 text-gray-800'
-                      : 'border-gray-200 text-gray-400 hover:bg-gray-50'
-                  }`}
-                >
-                  All lines
-                </button>
-                {TRACKS.map(t => (
-                  <button
-                    key={t.id}
-                    onClick={() => setCommunityFilter(t.id)}
-                    className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs transition-colors ${
-                      communityFilter === t.id
-                        ? 'bg-gray-100 border-gray-300 text-gray-800'
-                        : 'border-gray-200 text-gray-400 hover:bg-gray-50'
-                    }`}
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: t.dot }} />
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-            )}
+  <div className="flex gap-1.5 flex-wrap">
+    {TRACKS.map(t => (
+      <button
+        key={t.id}
+        onClick={() => toggleTrack(t.id)}
+        className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs transition-colors ${
+          activeTracks.has(t.id)
+            ? 'bg-gray-100 border-gray-300 text-gray-800'
+            : 'border-gray-200 text-gray-400 hover:bg-gray-50'
+        }`}
+      >
+        <span className="w-1.5 h-1.5 rounded-full" style={{ background: t.dot }} />
+        {t.label}
+      </button>
+    ))}
+  </div>
+)}
           </div>
 
           {/* Passage chunks */}
           {chapter.chunks.map(chunk => {
-            const pKey = passageKey(bookId, chapterNum, chunk.ref)
+            const pKey               = passageKey(bookId, chapterNum, chunk.ref)
+            const text               = passageTexts[chunk.esvRef]
+            const isLoading          = loadingPassages.has(chunk.esvRef)
             const chunkCommunityNotes = filteredCommunityNotes.filter(n => n.passage_ref === pKey)
 
             return (
@@ -300,10 +360,18 @@ export default function NotebookPage() {
                   <span className="block text-[10px] font-medium tracking-wider text-gray-400 mb-2">
                     {book.name} {chunk.ref}
                   </span>
-                  <p className="text-sm font-serif leading-relaxed text-gray-800">{chunk.text}</p>
+                  {isLoading ? (
+                    <div className="h-16 flex items-center">
+                      <span className="text-xs text-gray-300 animate-pulse">Loading passage...</span>
+                    </div>
+                  ) : text ? (
+                    <p className="text-sm font-serif leading-relaxed text-gray-800 whitespace-pre-line">{text}</p>
+                  ) : (
+                    <p className="text-xs text-gray-400 italic">Could not load passage. Check your ESV API key.</p>
+                  )}
                 </div>
 
-                {/* MY NOTES mode */}
+                {/* Study mode */}
                 {mode === 'study' && (
                   <div className="border border-t-0 border-gray-100 rounded-b-lg overflow-hidden">
                     {TRACKS.filter(t => activeTracks.has(t.id)).map((t, i) => (
@@ -335,20 +403,19 @@ export default function NotebookPage() {
                   </div>
                 )}
 
-                {/* COMMUNITY mode */}
+                {/* Community mode */}
                 {mode === 'community' && (
                   <div className="border border-t-0 border-gray-100 rounded-b-lg overflow-hidden bg-white">
                     {chunkCommunityNotes.length === 0 ? (
                       <div className="px-4 py-4 text-xs text-gray-400 italic">
-                        No community notes yet for this passage
-                        {communityFilter !== 'all' ? ` on the "${TRACKS.find(t=>t.id===communityFilter)?.label}" line` : ''}.
+                        No community notes yet for this passage.
                       </div>
                     ) : chunkCommunityNotes.map(note => {
-                      const track = TRACKS.find(t => t.id === note.track_id)
-                      const isOpen = openThreads.has(note.id)
+                      const track       = TRACKS.find(t => t.id === note.track_id)
+                      const isOpen      = openThreads.has(note.id)
                       const noteReplies = replies[note.id] ?? []
-                      const initials = note.profiles?.display_name
-                        ?.split(' ').map((n: string) => n[0]).join('').slice(0,2).toUpperCase() ?? '?'
+                      const initials    = note.profiles?.display_name
+                        ?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() ?? '?'
 
                       return (
                         <div key={note.id} className="border-b border-gray-100 last:border-b-0 p-4">
@@ -366,9 +433,7 @@ export default function NotebookPage() {
                               {new Date(note.created_at).toLocaleDateString()}
                             </span>
                           </div>
-
                           <p className="text-sm text-gray-600 leading-relaxed ml-8 mb-2">{note.content}</p>
-
                           <button
                             className="ml-8 text-[11px] text-gray-400 hover:text-gray-600"
                             onClick={() => toggleThread(note.id)}
@@ -379,7 +444,6 @@ export default function NotebookPage() {
                                 ? `${noteReplies.length} repl${noteReplies.length === 1 ? 'y' : 'ies'}`
                                 : 'Reply'}
                           </button>
-
                           {isOpen && (
                             <div className="ml-8 mt-3 pl-3 border-l border-gray-100">
                               {noteReplies.map(r => (
@@ -395,7 +459,7 @@ export default function NotebookPage() {
                                 <div className="flex gap-2 pt-2">
                                   <input
                                     className="flex-1 border border-gray-200 rounded px-2 py-1.5 text-xs outline-none"
-                                    placeholder="Write a reply…"
+                                    placeholder="Write a reply..."
                                     value={replyText[note.id] ?? ''}
                                     onChange={e => setReplyText(prev => ({ ...prev, [note.id]: e.target.value }))}
                                     onKeyDown={e => e.key === 'Enter' && postReply(note.id, pKey)}
@@ -431,14 +495,14 @@ export default function NotebookPage() {
               onClick={() => setChapterNum(c => c - 1)}
               className="text-sm text-gray-400 hover:text-gray-700 disabled:opacity-30"
             >
-              ← {book.name} {chapterNum - 1}
+              {book.name} {chapterNum - 1} &larr;
             </button>
             <button
               disabled={chapterNum >= totalChapters}
               onClick={() => setChapterNum(c => c + 1)}
               className="text-sm text-gray-400 hover:text-gray-700 disabled:opacity-30"
             >
-              {book.name} {chapterNum + 1} →
+              {book.name} {chapterNum + 1} &rarr;
             </button>
           </div>
 
