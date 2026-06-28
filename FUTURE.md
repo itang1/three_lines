@@ -231,18 +231,6 @@ Realistically a few months of work to reach feature parity with the web app.
 
 ---
 
-## Commits — Infrastructure
-
-**feat(infra): email notifications**
-Notify users when someone replies to their community note. Requires a Supabase
-database webhook triggering a Resend email via an API route.
-
-**feat(infra): rate limiting on community posts**
-Prevent spam by rate-limiting how many notes or replies a user can post per hour.
-Can be implemented as a Supabase row-level policy or in the API route.
-
----
-
 ## Marketing and Growth
 
 The real competitors are pen and paper, Notion, and Word documents — not YouVersion.

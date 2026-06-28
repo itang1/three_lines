@@ -289,10 +289,14 @@ export default function NotebookPage() {
   const postReply = async (parentId: string, passageRef: string) => {
     const content = replyText[parentId]?.trim()
     if (!content) return
-    await supabase.from('comments').insert({
-      user_id: user.id, passage_ref: passageRef,
-      track_id: 'thoughts', content, parent_id: parentId,
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    const res = await fetch('/api/comment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+      body: JSON.stringify({ passage_ref: passageRef, track_id: 'thoughts', content, parent_id: parentId }),
     })
+    if (!res.ok) return
     setReplyText(prev => ({ ...prev, [parentId]: '' }))
     loadReplies(parentId)
   }
