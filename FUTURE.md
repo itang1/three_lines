@@ -82,15 +82,6 @@ bare `<button>` with no `aria-label`/`aria-pressed`, and tracks are distinguishe
 colored dot (a problem for color-blind users and screen readers). Add labels, `aria-*`
 attributes, and a text/shape cue alongside the dot.
 
-**fix(ux): replace `alert()` with inline UI**
-`postReply` calls `alert('Sign in to reply.')`. A blocking native dialog feels broken on a
-polished reading tool — show the existing "Sign in to reply" inline hint instead (it's
-already rendered elsewhere in the same component).
-
-**feat(ux): add not-found and error boundaries**
-There is no `app/not-found.tsx` or `app/error.tsx`. A bad book/chapter URL or a failed
-Supabase call currently shows nothing graceful. Add both — especially since broken links are
-how new visitors often arrive.
 
 **perf(passage): cache the ESV response at the HTTP layer**
 ESV text is fetched fresh on every request (correct — Crossway's terms forbid storage), but
