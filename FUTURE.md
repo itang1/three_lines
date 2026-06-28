@@ -49,38 +49,17 @@ Questions to ask when soliciting feedback from early users.
 
 **Passage text via ESV API**
 Fetching passage text dynamically from ESV API and caching in Supabase passages table.
-Key and caching logic in place. Need to warm cache by visiting chapters.
-
-**Rechunking by pericope**
-Current chunking is somewhat arbitrary. Plan to rechunk John (and future books) using
-standard pericope divisions with named units (e.g. "The Prologue", "The Wedding at Cana").
-Requires wiping notes and passages tables before deploying since passage_ref keys will change.
-Add pericope name field to Chunk type for display in sidebar and passage header.
-
-**Remaining passages**
-Add the rest of John (chapters 4-21 structured text is in data.ts as ESV refs).
-Add Genesis chapters 26-50.
-Add more books over time.
+Key and caching logic in place. Run `npm run warm` (or `npm run warm -- --base-url=<prod-url>`)
+to pre-populate the cache for all books and non-ESV translations.
 
 ---
 
 ## Commits — Bible Text
 
-**feat(bible): persist preferred translation in user profile**
-Store the user's chosen translation in the profiles table so it survives sessions and
-device switches. Currently the selector resets to ESV on each visit.
-Schema change: `alter table profiles add column translation text not null default 'ESV';`
-Fetch on auth, write on change.
-
 **feat(bible): full Bible coverage**
 data.ts currently has John (all 21 chapters) and Genesis (all 50 chapters) with pericope
 names. Expanding to the full Bible follows the same pattern — add chunk structure per book,
 ESV API handles the text.
-
-**feat(bible): passage cache warming script**
-A one-off script (or edge function) that iterates all chunk esvRefs for all books and
-translations, calling /api/passage for each to pre-warm the Supabase cache. Avoids cold
-loads for new users hitting unchached chapters.
 
 ---
 
@@ -233,7 +212,6 @@ dedicated tool.
 
 **Phase 1 — Personal network (first 50 users)**
 - Share with people you know personally first
-- Ask Don and Prof. Mark Wallace to try it and share it with their circles
 - Seminary students and Bible study leaders are the best early users — they are
   already doing this kind of reading, just on paper
 - Collect feedback using the questions in the User Feedback section above
