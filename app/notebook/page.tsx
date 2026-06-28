@@ -57,9 +57,20 @@ export default function NotebookPage() {
 
   const book = BOOKS.find(b => b.id === bookId)!
 
-  // Auth
+  // Auth — also loads preferred translation from profile
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user))
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user)
+      if (data.user) {
+        supabase.from('profiles')
+          .select('preferred_translation')
+          .eq('id', data.user.id)
+          .single()
+          .then(({ data: profile }) => {
+            if (profile?.preferred_translation) setTranslation(profile.preferred_translation)
+          })
+      }
+    })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
       setUser(session?.user ?? null)
     })
@@ -270,7 +281,15 @@ export default function NotebookPage() {
           <select
             className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 bg-white text-gray-700 outline-none"
             value={translation}
-            onChange={e => setTranslation(e.target.value)}
+            onChange={e => {
+              setTranslation(e.target.value)
+              if (user) {
+                supabase.from('profiles')
+                  .update({ preferred_translation: e.target.value })
+                  .eq('id', user.id)
+                  .then(() => {})
+              }
+            }}
           >
             <option value="ESV">ESV</option>
             <option value="KJV">KJV</option>

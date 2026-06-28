@@ -4,6 +4,7 @@
 create table profiles (
   id uuid references auth.users on delete cascade primary key,
   display_name text not null default 'Anonymous',
+  preferred_translation text not null default 'ESV',
   created_at timestamptz default now()
 );
 
@@ -78,3 +79,6 @@ create policy "Users update own profile" on profiles for update using (auth.uid(
 -- Passages: public read, service role writes (via API route)
 create policy "Anyone reads passages" on passages for select using (true);
 create policy "Service role inserts passages" on passages for insert with check (true);
+
+-- Migration: add preferred_translation to existing profiles tables
+alter table profiles add column if not exists preferred_translation text not null default 'ESV';
