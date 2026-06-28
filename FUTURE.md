@@ -65,10 +65,6 @@ ESV API handles the text.
 
 ## Commits — Navigation
 
-**feat(nav): URL-based chapter routing**
-Encode the current book and chapter in the URL (e.g. /notebook/john/3) so users can
-bookmark or share a specific chapter, and the browser back button works as expected.
-
 **feat(nav): pericope names in sidebar**
 Once pericopes are named, show the pericope name as the subtitle in the sidebar chapter
 list instead of the first few words of the passage text.

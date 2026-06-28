@@ -33,7 +33,7 @@ export default function Navbar() {
       </Link>
 
       <div className="flex items-center gap-5">
-        <Link href="/notebook"     className="text-sm text-gray-500 hover:text-gray-900">Notebook</Link>
+        <Link href="/notebook/john/1" className="text-sm text-gray-500 hover:text-gray-900">Notebook</Link>
         <Link href="/instructions" className="text-sm text-gray-500 hover:text-gray-900">Instructions</Link>
         <Link href="/about"        className="text-sm text-gray-500 hover:text-gray-900">About</Link>
         <Link href="/contact"      className="text-sm text-gray-500 hover:text-gray-900">Contact</Link>
