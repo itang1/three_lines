@@ -40,6 +40,7 @@ const OSIS_CODES: Record<string, string> = {
 }
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
+const CACHE_HEADERS = { 'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=604800' }
 
 // Converts "John 1:1-18" → "JHN.1.1-JHN.1.18" or "Exodus 5" → "EXO.5"
 function toApiBiblePassageId(ref: string): string | null {
@@ -105,14 +106,14 @@ export async function GET(req: Request) {
   if (translation === 'ESV') {
     const text = await fetchESV(ref, verseNumbers)
     if (!text) return NextResponse.json({ error: 'Could not fetch ESV text' }, { status: 502 })
-    return NextResponse.json({ text, cached: false })
+    return NextResponse.json({ text, cached: false }, { headers: CACHE_HEADERS })
   }
 
   // Verse-numbers-on: skip cache (Supabase only stores the no-numbers version)
   if (verseNumbers) {
     const text = await fetchApiBible(ref, translation, true)
     if (!text) return NextResponse.json({ error: `Could not fetch ${translation} text` }, { status: 502 })
-    return NextResponse.json({ text, cached: false })
+    return NextResponse.json({ text, cached: false }, { headers: CACHE_HEADERS })
   }
 
   // All other translations, verse numbers off: check Supabase cache first
@@ -128,7 +129,7 @@ export async function GET(req: Request) {
     || Date.now() - new Date(cached.fetched_at).getTime() > THIRTY_DAYS_MS
 
   if (cached?.text && !isStale) {
-    return NextResponse.json({ text: cached.text, cached: true })
+    return NextResponse.json({ text: cached.text, cached: true }, { headers: CACHE_HEADERS })
   }
 
   // Fetch fresh from API.Bible and cache
@@ -146,5 +147,5 @@ export async function GET(req: Request) {
     fetched_at: new Date().toISOString(),
   }, { onConflict: 'book_id,ref,translation' })
 
-  return NextResponse.json({ text, cached: false })
+  return NextResponse.json({ text, cached: false }, { headers: CACHE_HEADERS })
 }

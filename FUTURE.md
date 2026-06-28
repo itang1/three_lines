@@ -2,40 +2,6 @@
 
 A running list of ideas organized as discrete commits. Add to this as new ideas come up.
 
-### P0 — Adoption blockers (broken right now)
-
-**fix(auth): login redirects to a route that doesn't exist**
-`app/login/page.tsx` sends both Google OAuth and the magic link to `${location.origin}/study`
-(lines 15 and 24). There is no `/study` route — the notebook lives at `/notebook/...`. So
-*every successful sign-in lands on a 404.* This silently breaks the entire account / save /
-community flow, which is the core retention loop. Change both redirects to `/notebook/john/1`
-(or `/notebook`). This is the single highest-leverage fix on the list.
-
-**fix(bible): non-ESV translations never cache (schema is missing a column)**
-`app/api/passage/route.ts` filters and upserts the `passages` table by `translation`
-(`.eq('translation', ...)` and `onConflict: 'book_id,ref,translation'`), but
-`supabase-schema.sql` has **no `translation` column** on `passages`, and its unique constraint
-is `unique(book_id, ref)` only. So for KJV / NIV / CEV the cache read errors out and the
-upsert's `onConflict` references a constraint that doesn't exist. Result: every non-ESV view
-hits the paid API.Bible endpoint live, and `npm run warm` can't populate the cache. Fix the
-schema:
-```sql
-alter table passages add column if not exists translation text not null default 'ESV';
-alter table passages drop constraint if exists passages_book_id_ref_key;
-alter table passages add constraint passages_book_ref_translation_key unique (book_id, ref, translation);
-```
-Then re-run `npm run warm`. (Without the translation in the unique key, two translations of
-the same passage would also overwrite each other.)
-
-**fix(content): placeholder text is live on the homepage**
-`app/page.tsx` ships a blockquote that literally reads *"Put a quote here about John being
-the intimate gospel."* This is the first thing a new visitor sees. Replace it with a real
-Earl Palmer quote (or remove the block) before sharing the link with anyone.
-
-**chore(repo): delete the stray brace-expansion directory**
-There is a junk directory in the repo root named `{study,about,guide,contact},components,lib}`
-(under a `{app` folder) — the residue of a `mkdir` whose brace expansion didn't run. Delete it.
-
 ### P1 — Required before sharing widely
 
 **fix(mobile): the notebook is unusable on a phone**
@@ -82,12 +48,6 @@ bare `<button>` with no `aria-label`/`aria-pressed`, and tracks are distinguishe
 colored dot (a problem for color-blind users and screen readers). Add labels, `aria-*`
 attributes, and a text/shape cue alongside the dot.
 
-
-**perf(passage): cache the ESV response at the HTTP layer**
-ESV text is fetched fresh on every request (correct — Crossway's terms forbid storage), but
-nothing caches the *HTTP response*. Add a `Cache-Control`/`s-maxage` header on the route
-response so Vercel's edge can serve repeat hits without round-tripping Crossway. This cuts
-first-paint latency on popular chapters without violating the no-storage term.
 
 **feat(onboarding): the empty notebook doesn't teach the method**
 A first-time, signed-out visitor lands on John 1 with six empty text boxes and no example of
