@@ -12,7 +12,7 @@ export default function LoginPage() {
     setLoading(true)
     await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${location.origin}/study` }
+      options: { emailRedirectTo: `${location.origin}/notebook` }
     })
     setSent(true)
     setLoading(false)
@@ -21,7 +21,7 @@ export default function LoginPage() {
   const signInWithGoogle = async () => {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${location.origin}/study` }
+      options: { redirectTo: `${location.origin}/notebook` }
     })
   }
 

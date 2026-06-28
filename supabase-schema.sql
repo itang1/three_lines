@@ -30,15 +30,16 @@ create table comments (
   created_at timestamptz default now()
 );
 
--- Cached passage text fetched from ESV API
+-- Cached passage text fetched from ESV API or API.Bible
 create table passages (
   id uuid primary key default gen_random_uuid(),
   book_id text not null,
   chapter int not null,
   ref text not null,           -- e.g. "John 1:1-5"
+  translation text not null default 'ESV',
   text text not null,
   fetched_at timestamptz default now(),
-  unique(book_id, ref)
+  unique(book_id, ref, translation)
 );
 
 -- Triggers to auto-create profile on signup
@@ -82,3 +83,8 @@ create policy "Service role inserts passages" on passages for insert with check 
 
 -- Migration: add preferred_translation to existing profiles tables
 alter table profiles add column if not exists preferred_translation text not null default 'ESV';
+
+-- Migration: add translation column to passages and fix unique constraint
+alter table passages add column if not exists translation text not null default 'ESV';
+alter table passages drop constraint if exists passages_book_id_ref_key;
+alter table passages add constraint passages_book_ref_translation_key unique (book_id, ref, translation);

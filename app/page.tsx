@@ -17,15 +17,6 @@ export default function Home() {
         </div>
       </div>
 
-      <blockquote className="border-l-2 border-gray-200 pl-5">
-        <p className="text-sm font-serif leading-relaxed text-gray-400 italic">
-          Put a quote here about John being the intimate gospel.
-        </p>
-        <cite className="block mt-3 text-xs text-gray-400 not-italic">
-          — Rev. Dr. Earl Palmer
-        </cite>
-      </blockquote>
-
     </div>
   )
 }
