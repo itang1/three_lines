@@ -287,7 +287,6 @@ export default function NotebookPage() {
   }
 
   const postReply = async (parentId: string, passageRef: string) => {
-    if (!user) return alert('Sign in to reply.')
     const content = replyText[parentId]?.trim()
     if (!content) return
     await supabase.from('comments').insert({

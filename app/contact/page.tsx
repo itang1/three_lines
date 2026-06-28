@@ -4,20 +4,23 @@ import { useState } from 'react'
 export default function ContactPage() {
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(false)
   const [form, setForm] = useState({ name: '', email: '', message: '' })
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setError(false)
     try {
-      await fetch('/api/contact', {
+      const res = await fetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       })
+      if (!res.ok) throw new Error()
       setSent(true)
     } catch {
-      alert('Something went wrong. Please try emailing theworkingcell+threelines@gmail.com directly.')
+      setError(true)
     }
     setLoading(false)
   }
@@ -65,6 +68,15 @@ export default function ContactPage() {
           <button type="submit" disabled={loading} className="btn-primary w-full disabled:opacity-40">
             {loading ? 'Sending…' : 'Send message'}
           </button>
+          {error && (
+            <p className="text-sm text-red-600">
+              Something went wrong. Please email{' '}
+              <a href="mailto:theworkingcell+threelines@gmail.com" className="underline">
+                theworkingcell+threelines@gmail.com
+              </a>{' '}
+              directly.
+            </p>
+          )}
         </form>
       )}
     </div>
