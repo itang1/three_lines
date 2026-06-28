@@ -18,13 +18,45 @@ const BIBLE_API_IDS: Record<string, string> = {
   CEV: '9879dbb7cfe39e4d-01',
 }
 
+// OSIS book codes used by API.Bible passage IDs
+const OSIS_CODES: Record<string, string> = {
+  Genesis: 'GEN', Exodus: 'EXO', Leviticus: 'LEV', Numbers: 'NUM',
+  Deuteronomy: 'DEU', Joshua: 'JOS', Judges: 'JDG', Ruth: 'RUT',
+  '1 Samuel': '1SA', '2 Samuel': '2SA', '1 Kings': '1KI', '2 Kings': '2KI',
+  '1 Chronicles': '1CH', '2 Chronicles': '2CH', Ezra: 'EZR', Nehemiah: 'NEH',
+  Esther: 'EST', Job: 'JOB', Psalms: 'PSA', Proverbs: 'PRO',
+  Ecclesiastes: 'ECC', 'Song of Solomon': 'SNG', Isaiah: 'ISA', Jeremiah: 'JER',
+  Lamentations: 'LAM', Ezekiel: 'EZK', Daniel: 'DAN', Hosea: 'HOS',
+  Joel: 'JOL', Amos: 'AMO', Obadiah: 'OBA', Jonah: 'JON', Micah: 'MIC',
+  Nahum: 'NAH', Habakkuk: 'HAB', Zephaniah: 'ZEP', Haggai: 'HAG',
+  Zechariah: 'ZEC', Malachi: 'MAL', Matthew: 'MAT', Mark: 'MRK',
+  Luke: 'LUK', John: 'JHN', Acts: 'ACT', Romans: 'ROM',
+  '1 Corinthians': '1CO', '2 Corinthians': '2CO', Galatians: 'GAL',
+  Ephesians: 'EPH', Philippians: 'PHP', Colossians: 'COL',
+  '1 Thessalonians': '1TH', '2 Thessalonians': '2TH', '1 Timothy': '1TI',
+  '2 Timothy': '2TI', Titus: 'TIT', Philemon: 'PHM', Hebrews: 'HEB',
+  James: 'JAS', '1 Peter': '1PE', '2 Peter': '2PE', '1 John': '1JN',
+  '2 John': '2JN', '3 John': '3JN', Jude: 'JUD', Revelation: 'REV',
+}
+
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
+
+// Converts "John 1:1-18" → "JHN.1.1-JHN.1.18" for API.Bible passage endpoint
+function toApiBiblePassageId(ref: string): string | null {
+  const match = ref.match(/^(.+?)\s+(\d+):(\d+)(?:-(\d+))?$/)
+  if (!match) return null
+  const [, bookName, chapter, startVerse, endVerse] = match
+  const code = OSIS_CODES[bookName]
+  if (!code) return null
+  const start = `${code}.${chapter}.${startVerse}`
+  return endVerse ? `${start}-${code}.${chapter}.${endVerse}` : start
+}
 
 async function fetchESV(ref: string): Promise<string | null> {
   const key = process.env.ESV_API_KEY
   if (!key) return null
   const res = await fetch(
-    `https://api.esv.org/v3/passage/text/?q=${encodeURIComponent(ref)}&include-headings=false&include-footnotes=false&include-verse-numbers=true&include-short-copyright=false&include-passage-references=false`,
+    `https://api.esv.org/v3/passage/text/?q=${encodeURIComponent(ref)}&include-headings=false&include-footnotes=false&include-verse-numbers=false&include-short-copyright=false&include-passage-references=false`,
     { headers: { Authorization: `Token ${key}` } }
   )
   if (!res.ok) return null
@@ -33,21 +65,17 @@ async function fetchESV(ref: string): Promise<string | null> {
 }
 
 async function fetchApiBible(ref: string, translation: string): Promise<string | null> {
-  const key     = process.env.BIBLE_API_KEY
-  const bibleId = BIBLE_API_IDS[translation]
-  if (!key || !bibleId) return null
+  const key       = process.env.BIBLE_API_KEY
+  const bibleId   = BIBLE_API_IDS[translation]
+  const passageId = toApiBiblePassageId(ref)
+  if (!key || !bibleId || !passageId) return null
   const res = await fetch(
-    `https://api.scripture.api.bible/v1/bibles/${bibleId}/search?query=${encodeURIComponent(ref)}&limit=1`,
+    `https://api.scripture.api.bible/v1/bibles/${bibleId}/passages/${passageId}?content-type=text&include-verse-numbers=false&include-titles=false`,
     { headers: { 'api-key': key } }
   )
   if (!res.ok) return null
   const data = await res.json()
-  const passages = data?.data?.passages
-  if (!passages?.length) return null
-  return passages[0].content
-    .replace(/<[^>]+>/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
+  return data?.data?.content?.trim() ?? null
 }
 
 export async function GET(req: Request) {

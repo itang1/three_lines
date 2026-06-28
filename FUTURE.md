@@ -1,0 +1,278 @@
+# Future Improvements
+
+A running list of ideas organized as discrete commits. Add to this as new ideas come up.
+
+---
+
+## User Feedback — Things to Test
+
+Questions to ask when soliciting feedback from early users.
+
+**Passages and chunking**
+- Do the passage chunks feel like natural units, or do they cut off at awkward places?
+- Is each chunk the right length — long enough to have something to say, short enough to write about on three lines?
+- Are the pericope names (e.g. "The Wedding at Cana") helpful or distracting?
+
+**The lines**
+- Are the six line labels self-explanatory, or did any of them confuse you?
+- Did you find yourself wanting a line that doesn't exist?
+- Did any of the lines feel redundant or unnecessary?
+- Did you use the optional lines (Historical context, Literary observation, Connections to other texts), or did you stick to the core three?
+- Did toggling lines on and off feel useful, or would you rather just always see all six?
+
+**Navigation**
+- Could you find your way around the book easily?
+- Was the sidebar chapter list helpful? Did the subtitles tell you anything useful?
+- Did the progress dots (filled when you have written notes) help orient you?
+
+**Community mode**
+- Did you look at other people's notes? Was it useful or distracting?
+- Did the track filter help you find what you were looking for?
+- Did you feel like replying to anyone's note? If not, why not?
+- Did seeing other people's notes influence what you wrote in your own?
+
+**Saving and accounts**
+- Did your notes save correctly across sessions?
+- Was sign-in easy enough?
+- Did you feel comfortable knowing your notes are visible to others by default?
+
+**Overall**
+- What did you do first when you opened the app?
+- Was there anything you expected to find that wasn't there?
+- Was there anything you found that you didn't expect?
+- Would you use this for a personal Bible study? Why or why not?
+- Would you use this in a group setting?
+
+---
+
+## In Progress
+
+**Passage text via ESV API**
+Fetching passage text dynamically from ESV API and caching in Supabase passages table.
+Key and caching logic in place. Need to warm cache by visiting chapters.
+
+**Rechunking by pericope**
+Current chunking is somewhat arbitrary. Plan to rechunk John (and future books) using
+standard pericope divisions with named units (e.g. "The Prologue", "The Wedding at Cana").
+Requires wiping notes and passages tables before deploying since passage_ref keys will change.
+Add pericope name field to Chunk type for display in sidebar and passage header.
+
+**Remaining passages**
+Add the rest of John (chapters 4-21 structured text is in data.ts as ESV refs).
+Add Genesis chapters 26-50.
+Add more books over time.
+
+---
+
+## Commits — Bible Text
+
+**feat(bible): verse number toggle**
+Add a small toggle in the sidebar (or per-user preference) to show or hide verse numbers.
+Currently verse numbers are off by default for cleaner reading. Toggling on adds [1] [2]
+inline via the ESV API's include-verse-numbers param, and an equivalent flag for API.Bible.
+
+**feat(bible): persist preferred translation in user profile**
+Store the user's chosen translation in the profiles table so it survives sessions and
+device switches. Currently the selector resets to ESV on each visit.
+Schema change: `alter table profiles add column translation text not null default 'ESV';`
+Fetch on auth, write on change.
+
+**feat(bible): full Bible coverage**
+data.ts currently has John (all 21 chapters) and Genesis (all 50 chapters) with pericope
+names. Expanding to the full Bible follows the same pattern — add chunk structure per book,
+ESV API handles the text.
+
+**feat(bible): passage cache warming script**
+A one-off script (or edge function) that iterates all chunk esvRefs for all books and
+translations, calling /api/passage for each to pre-warm the Supabase cache. Avoids cold
+loads for new users hitting unchached chapters.
+
+---
+
+## Commits — Navigation
+
+**feat(nav): sidebar in-page anchors**
+Instead of loading each chapter as a separate view, load the whole book as one continuous
+page and have the sidebar chapter list smooth-scroll to anchors. Closest to the experience
+of reading a physical Bible — the surrounding text is always there. Requires reworking
+the notebook page from paginated to continuous.
+
+**feat(nav): URL-based chapter routing**
+Encode the current book and chapter in the URL (e.g. /notebook/john/3) so users can
+bookmark or share a specific chapter, and the browser back button works as expected.
+
+**feat(nav): pericope names in sidebar**
+Once pericopes are named, show the pericope name as the subtitle in the sidebar chapter
+list instead of the first few words of the passage text.
+
+**feat(nav): keyboard shortcuts**
+j / k (or ← / →) to move between chapters. / to focus the book selector.
+t to cycle translations. A small key hint shown on hover over the nav buttons.
+
+---
+
+## Commits — Notebook Features
+
+**feat(notebook): search your own notes**
+Full-text search across everything the user has written, across all books and tracks.
+Supabase supports full-text search natively with to_tsvector. A search bar above the
+passage list that filters or highlights matching chunks.
+
+**feat(notebook): export notes**
+Download all notes for a book (or all books) as a formatted PDF or plain text file.
+Useful for printing, archiving, or bringing notes into a study group.
+
+**feat(notebook): sticky chapter heading**
+The book and chapter heading sticks to the top of the scroll area so the user always
+knows where they are when reading long chapters.
+
+**feat(notebook): theme trace track**
+A user-named optional track where the user specifies a thread they are following
+(e.g. "covenant", "exile", "light") and that label appears as a custom line throughout
+their reading. Stored as a user preference in the profiles table.
+
+**feat(notebook): reading plan layer**
+An optional structure overlaid on the notebook, e.g. Palmer's six-week John study,
+or a chapter-a-day plan. Shows which passages are assigned for today and tracks completion.
+
+---
+
+## Commits — Community
+
+**feat(community): filter community notes by book/chapter**
+A way to browse all community notes across the whole Bible, not just the chapter you
+are currently reading. Useful for discovering what passages others are spending time on.
+
+**feat(community): most discussed passages**
+A page or sidebar widget showing which passages have the most community notes or replies.
+Simple SQL query: SELECT passage_ref, COUNT(*) FROM notes WHERE is_public = true GROUP BY
+passage_ref ORDER BY COUNT DESC.
+
+**feat(community): moderation tools**
+A flag/report button on community notes. An admin view for the site owner to review
+flagged notes and remove them. Currently there is no moderation layer.
+
+---
+
+## Commits — Privacy and Sharing
+
+**feat(privacy): per-note public/private toggle**
+A small lock/globe icon next to each note line so users can control what appears in
+Community mode. The is_public column already exists in the schema. This is UI only.
+
+**feat(privacy): global account default for note visibility**
+A profile page setting that lets users choose whether new notes default to public or
+private. Currently all notes are public by default.
+
+**feat(privacy): private study mode**
+An explicit "studying privately" mode that sets all notes to private for that session,
+without changing the account default.
+
+---
+
+## Commits — Account and Profile
+
+**feat(account): display name prompt on signup**
+Currently display name defaults to the name from Google auth or "Anonymous" for
+magic link signups. A prompt on first login to set a display name improves the
+community experience.
+
+**feat(account): profile page**
+A page where users can update their display name, set privacy defaults, and see
+stats on their reading (chapters covered, notes written).
+
+**feat(account): account deletion**
+A way for users to delete their account and all associated notes. Required for GDPR
+compliance if the site ever has users in the EU.
+
+---
+
+## Commits — Design and UX
+
+**feat(ux): dark mode**
+A meditative reading tool lends itself to dark mode. Tailwind supports this with the
+dark: variant and a class toggle on the root element.
+
+**feat(ux): mobile layout**
+The current sidebar + main layout does not work well on small screens. A mobile version
+would collapse the sidebar into a top dropdown or bottom sheet.
+
+---
+
+## Commits — iOS App
+
+Three realistic paths from easiest to hardest.
+
+**feat(mobile): Progressive Web App (PWA) [recommended first step]**
+Add a manifest file and service worker to the existing Next.js app. Users can then
+"Add to Home Screen" on iPhone and it behaves like an app — full screen, icon on the
+home screen, no browser chrome. Does not appear in the App Store. Shares 100% of the
+existing codebase. Roughly one day of work. Best starting point before investing in
+a native app.
+
+**feat(mobile): Capacitor wrapper**
+Wraps the existing Next.js web app in a native shell with minimal code changes. Gets
+the app into the App Store faster than React Native. The result is more "wrapped web
+app" than true native but is appropriate for a reading and note-taking tool. Good
+middle path if the PWA feels too limited.
+
+**feat(mobile): React Native with Expo**
+Rewrites the UI layer in React Native (different components, no Tailwind) while reusing
+all Supabase backend logic and data structure. True native iOS app. Takes longer to
+build but produces the best mobile experience. Expo is the easiest starting point.
+Realistically a few months of work to reach feature parity with the web app.
+
+---
+
+## Commits — Infrastructure
+
+**feat(infra): email notifications**
+Notify users when someone replies to their community note. Requires a Supabase
+database webhook triggering a Resend email via an API route.
+
+**feat(infra): rate limiting on community posts**
+Prevent spam by rate-limiting how many notes or replies a user can post per hour.
+Can be implemented as a Supabase row-level policy or in the API route.
+
+---
+
+## Marketing and Growth
+
+The real competitors are pen and paper, Notion, and Word documents — not YouVersion.
+The people who want this are doing analytical Bible reading already, just without a
+dedicated tool.
+
+**Phase 1 — Personal network (first 50 users)**
+- Share with people you know personally first
+- Ask Don and Prof. Mark Wallace to try it and share it with their circles
+- Seminary students and Bible study leaders are the best early users — they are
+  already doing this kind of reading, just on paper
+- Collect feedback using the questions in the User Feedback section above
+
+**Phase 2 — Content**
+- Write up the three-lines method as a standalone article or blog post, showing what
+  filled-in notes actually look like on a real passage
+- The origin story (Don's group, graph paper, 1985) is genuinely interesting and worth
+  telling in full
+- Post on Substack or a personal blog with a link to the app
+- The About page already has the bones of this story
+
+**Phase 3 — Community outreach**
+- Find communities where this audience already gathers: seminary subreddits, Bible
+  study Facebook groups, church small group leader forums
+- Participate genuinely before mentioning the app
+- Reach out directly to one or two professors or pastors whose work you respect and
+  ask if they would be willing to try it — a single endorsement from a credible voice
+  in this space is worth more than any ad
+
+**Phase 4 — SEO and discoverability**
+- The Instructions and About pages already contain good natural language about the
+  method — this is a foundation for search
+- A blog with regular posts about Bible study method will build organic traffic over time
+- "Earl Palmer three lines method" is a low-competition search term that this site
+  could realistically own
+
+**Things not worth doing yet**
+- Paid advertising before the product is stable and users are retaining
+- Social media presence before there is content to point to
+- App Store submission before there is clear demand from mobile users

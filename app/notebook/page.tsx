@@ -224,6 +224,20 @@ export default function NotebookPage() {
       {/* Sidebar */}
       <aside className="w-52 border-r border-gray-100 flex flex-col flex-shrink-0">
 
+        {/* Version selector */}
+        <div className="p-3 border-b border-gray-100 flex-shrink-0">
+          <select
+            className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 bg-white text-gray-700 outline-none"
+            value={translation}
+            onChange={e => setTranslation(e.target.value)}
+          >
+            <option value="ESV">ESV</option>
+            <option value="KJV">KJV</option>
+            <option value="NIV">NIV</option>
+            <option value="CEV">CEV</option>
+          </select>
+        </div>
+
         {/* Book picker */}
         <div className="p-3 border-b border-gray-100 flex-shrink-0">
           <select
@@ -280,38 +294,26 @@ export default function NotebookPage() {
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-2xl mx-auto px-6 py-5">
 
-          {/* Chapter heading + translation picker + prev/next */}
+          {/* Chapter heading + prev/next */}
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-lg font-serif font-medium text-gray-900">
               {book.name} {chapterNum}
             </h2>
-            <div className="flex items-center gap-3">
-              <select
-                className="text-xs border border-gray-200 rounded px-2 py-1.5 bg-white text-gray-600 outline-none"
-                value={translation}
-                onChange={e => setTranslation(e.target.value)}
+            <div className="flex gap-1 text-xs text-gray-400">
+              <button
+                disabled={chapterNum <= 1}
+                onClick={() => setChapterNum(c => c - 1)}
+                className="px-2 py-1 rounded hover:bg-gray-100 disabled:opacity-30"
               >
-                <option value="ESV">ESV</option>
-                <option value="KJV">KJV</option>
-                <option value="NIV">NIV</option>
-                <option value="CEV">CEV</option>
-              </select>
-              <div className="flex gap-1 text-xs text-gray-400">
-                <button
-                  disabled={chapterNum <= 1}
-                  onClick={() => setChapterNum(c => c - 1)}
-                  className="px-2 py-1 rounded hover:bg-gray-100 disabled:opacity-30"
-                >
-                  {chapterNum > 1 ? `\u2190 ${book.name} ${chapterNum - 1}` : '\u2190'}
-                </button>
-                <button
-                  disabled={chapterNum >= totalChapters}
-                  onClick={() => setChapterNum(c => c + 1)}
-                  className="px-2 py-1 rounded hover:bg-gray-100 disabled:opacity-30"
-                >
-                  {chapterNum < totalChapters ? `${book.name} ${chapterNum + 1} \u2192` : '\u2192'}
-                </button>
-              </div>
+                {chapterNum > 1 ? `\u2190 ${book.name} ${chapterNum - 1}` : '\u2190'}
+              </button>
+              <button
+                disabled={chapterNum >= totalChapters}
+                onClick={() => setChapterNum(c => c + 1)}
+                className="px-2 py-1 rounded hover:bg-gray-100 disabled:opacity-30"
+              >
+                {chapterNum < totalChapters ? `${book.name} ${chapterNum + 1} \u2192` : '\u2192'}
+              </button>
             </div>
           </div>
 
