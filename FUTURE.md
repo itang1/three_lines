@@ -66,11 +66,6 @@ Add more books over time.
 
 ## Commits — Bible Text
 
-**feat(bible): verse number toggle**
-Add a small toggle in the sidebar (or per-user preference) to show or hide verse numbers.
-Currently verse numbers are off by default for cleaner reading. Toggling on adds [1] [2]
-inline via the ESV API's include-verse-numbers param, and an equivalent flag for API.Bible.
-
 **feat(bible): persist preferred translation in user profile**
 Store the user's chosen translation in the profiles table so it survives sessions and
 device switches. Currently the selector resets to ESV on each visit.
@@ -90,12 +85,6 @@ loads for new users hitting unchached chapters.
 ---
 
 ## Commits — Navigation
-
-**feat(nav): sidebar in-page anchors**
-Instead of loading each chapter as a separate view, load the whole book as one continuous
-page and have the sidebar chapter list smooth-scroll to anchors. Closest to the experience
-of reading a physical Bible — the surrounding text is always there. Requires reworking
-the notebook page from paginated to continuous.
 
 **feat(nav): URL-based chapter routing**
 Encode the current book and chapter in the URL (e.g. /notebook/john/3) so users can
