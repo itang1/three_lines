@@ -418,10 +418,16 @@ export default function NotebookPage() {
 
       {/* Main area — continuous scroll */}
       <div ref={scrollContainer} className="flex-1 overflow-y-auto">
-        <div className="max-w-2xl mx-auto px-6 py-5">
 
-          {/* Book heading */}
-          <h2 className="text-lg font-serif font-medium text-gray-900 mb-5">{book.name}</h2>
+        {/* Sticky chapter heading — keeps the reader oriented in long chapters */}
+        <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-gray-100">
+          <div className="max-w-2xl mx-auto px-6 py-2.5 flex items-baseline gap-2.5">
+            <h2 className="text-base font-serif font-medium text-gray-900">{book.name}</h2>
+            <span className="text-xs text-gray-400 tracking-wider uppercase">Chapter {activeChapter}</span>
+          </div>
+        </div>
+
+        <div className="max-w-2xl mx-auto px-6 py-5">
 
           {/* Mode toggle + track pills */}
           <div className="flex items-center gap-3 mb-8 flex-wrap">
