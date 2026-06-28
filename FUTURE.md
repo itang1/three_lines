@@ -2,6 +2,109 @@
 
 A running list of ideas organized as discrete commits. Add to this as new ideas come up.
 
+### P0 — Adoption blockers (broken right now)
+
+**fix(auth): login redirects to a route that doesn't exist**
+`app/login/page.tsx` sends both Google OAuth and the magic link to `${location.origin}/study`
+(lines 15 and 24). There is no `/study` route — the notebook lives at `/notebook/...`. So
+*every successful sign-in lands on a 404.* This silently breaks the entire account / save /
+community flow, which is the core retention loop. Change both redirects to `/notebook/john/1`
+(or `/notebook`). This is the single highest-leverage fix on the list.
+
+**fix(bible): non-ESV translations never cache (schema is missing a column)**
+`app/api/passage/route.ts` filters and upserts the `passages` table by `translation`
+(`.eq('translation', ...)` and `onConflict: 'book_id,ref,translation'`), but
+`supabase-schema.sql` has **no `translation` column** on `passages`, and its unique constraint
+is `unique(book_id, ref)` only. So for KJV / NIV / CEV the cache read errors out and the
+upsert's `onConflict` references a constraint that doesn't exist. Result: every non-ESV view
+hits the paid API.Bible endpoint live, and `npm run warm` can't populate the cache. Fix the
+schema:
+```sql
+alter table passages add column if not exists translation text not null default 'ESV';
+alter table passages drop constraint if exists passages_book_id_ref_key;
+alter table passages add constraint passages_book_ref_translation_key unique (book_id, ref, translation);
+```
+Then re-run `npm run warm`. (Without the translation in the unique key, two translations of
+the same passage would also overwrite each other.)
+
+**fix(content): placeholder text is live on the homepage**
+`app/page.tsx` ships a blockquote that literally reads *"Put a quote here about John being
+the intimate gospel."* This is the first thing a new visitor sees. Replace it with a real
+Earl Palmer quote (or remove the block) before sharing the link with anyone.
+
+**chore(repo): delete the stray brace-expansion directory**
+There is a junk directory in the repo root named `{study,about,guide,contact},components,lib}`
+(under a `{app` folder) — the residue of a `mkdir` whose brace expansion didn't run. Delete it.
+
+### P1 — Required before sharing widely
+
+**fix(mobile): the notebook is unusable on a phone**
+The notebook is a fixed `w-52` sidebar next to `h-[calc(100vh-48px)]` main column, and the
+navbar uses a 35px logo with four inline links. On a phone the sidebar eats half the screen
+and the nav overflows. Since most people open a shared link on mobile, this caps adoption hard.
+Collapse the sidebar into a top sheet / drawer below `md:`, and let the navbar wrap or move
+links into a menu. (Already noted under Design and UX — promoting it to P1 because of the goal.)
+
+**feat(seo): the site is effectively invisible to search and unshareable on social**
+There is no `public/` directory, no favicon, no `robots.txt`, no `sitemap.xml`, no Open Graph
+or Twitter card tags, and no `metadataBase`. Every page also shares the single title
+"Three Lines" because the content pages are `'use client'` and can't export `metadata`.
+Concretely:
+- Add `metadataBase` + default `openGraph` / `twitter` blocks in `app/layout.tsx`, plus an
+  OG image (a shared `/notebook/john/1` link currently previews as a blank card).
+- Give each page its own title/description. Split the client pages: keep a server
+  `page.tsx` that exports `metadata` and renders a client child for the interactive part.
+- Add `app/robots.ts`, `app/sitemap.ts`, and `app/icon.png` (Next.js generates the routes).
+- "Earl Palmer three lines method" is a low-competition term this site could own — none of
+  that ranks without the above.
+
+**fix(privacy): notes are forced public with no way to opt out**
+`handleNoteChange` always writes `is_public: true`, and the Instructions page tells users
+their notes are "visible to others by default." There is no per-note or per-account control,
+yet the schema default is `is_public false`. People write personal, sometimes raw reflections
+on Scripture — silently publishing them will scare off exactly the thoughtful users this is
+for. Ship at least an account-level "keep my notes private" default before promoting the site.
+(The per-note and global-default toggles already exist under Privacy and Sharing — this is the
+consent gap, not just a feature.)
+
+**feat(security): the contact form is an open spam relay**
+`app/api/contact/route.ts` accepts any JSON and emails it with no validation, no honeypot,
+no rate limiting, and no email-format check. Once the URL is public this will get abused. Add
+a honeypot field, basic length/format validation, and rate limiting (ties into the existing
+"rate limiting on community posts" item — do them together). Also move off
+`from: onboarding@resend.dev` to a verified domain or messages will land in spam.
+
+### P2 — Polish that affects trust and conversion
+
+**fix(a11y): controls are unlabeled and color-only**
+The translation and book `<select>`s have no associated label, the verse-numbers toggle is a
+bare `<button>` with no `aria-label`/`aria-pressed`, and tracks are distinguished only by a
+colored dot (a problem for color-blind users and screen readers). Add labels, `aria-*`
+attributes, and a text/shape cue alongside the dot.
+
+**fix(ux): replace `alert()` with inline UI**
+`postReply` calls `alert('Sign in to reply.')`. A blocking native dialog feels broken on a
+polished reading tool — show the existing "Sign in to reply" inline hint instead (it's
+already rendered elsewhere in the same component).
+
+**feat(ux): add not-found and error boundaries**
+There is no `app/not-found.tsx` or `app/error.tsx`. A bad book/chapter URL or a failed
+Supabase call currently shows nothing graceful. Add both — especially since broken links are
+how new visitors often arrive.
+
+**perf(passage): cache the ESV response at the HTTP layer**
+ESV text is fetched fresh on every request (correct — Crossway's terms forbid storage), but
+nothing caches the *HTTP response*. Add a `Cache-Control`/`s-maxage` header on the route
+response so Vercel's edge can serve repeat hits without round-tripping Crossway. This cuts
+first-paint latency on popular chapters without violating the no-storage term.
+
+**feat(onboarding): the empty notebook doesn't teach the method**
+A first-time, signed-out visitor lands on John 1 with six empty text boxes and no example of
+what a filled-in note looks like. Pre-fill one passage with a short worked example (or a
+dismissible "see an example" overlay) so people grasp the three-lines method in five seconds
+instead of having to read Instructions first. This is the biggest conversion lever after the
+P0 fixes.
+
 ---
 
 ## User Feedback — Things to Test
@@ -54,13 +157,6 @@ to pre-populate the cache for all books and non-ESV translations.
 
 ---
 
-## Commits — Bible Text
-
-**feat(bible): full Bible coverage**
-data.ts currently has John (all 21 chapters) and Genesis (all 50 chapters) with pericope
-names. Expanding to the full Bible follows the same pattern — add chunk structure per book,
-ESV API handles the text.
-
 ---
 
 ## Commits — Navigation
@@ -85,10 +181,6 @@ passage list that filters or highlights matching chunks.
 **feat(notebook): export notes**
 Download all notes for a book (or all books) as a formatted PDF or plain text file.
 Useful for printing, archiving, or bringing notes into a study group.
-
-**feat(notebook): sticky chapter heading**
-The book and chapter heading sticks to the top of the scroll area so the user always
-knows where they are when reading long chapters.
 
 **feat(notebook): theme trace track**
 A user-named optional track where the user specifies a thread they are following

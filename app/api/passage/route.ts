@@ -24,7 +24,7 @@ const OSIS_CODES: Record<string, string> = {
   Deuteronomy: 'DEU', Joshua: 'JOS', Judges: 'JDG', Ruth: 'RUT',
   '1 Samuel': '1SA', '2 Samuel': '2SA', '1 Kings': '1KI', '2 Kings': '2KI',
   '1 Chronicles': '1CH', '2 Chronicles': '2CH', Ezra: 'EZR', Nehemiah: 'NEH',
-  Esther: 'EST', Job: 'JOB', Psalms: 'PSA', Proverbs: 'PRO',
+  Esther: 'EST', Job: 'JOB', Psalms: 'PSA', Psalm: 'PSA', Proverbs: 'PRO',
   Ecclesiastes: 'ECC', 'Song of Solomon': 'SNG', Isaiah: 'ISA', Jeremiah: 'JER',
   Lamentations: 'LAM', Ezekiel: 'EZK', Daniel: 'DAN', Hosea: 'HOS',
   Joel: 'JOL', Amos: 'AMO', Obadiah: 'OBA', Jonah: 'JON', Micah: 'MIC',
@@ -41,15 +41,24 @@ const OSIS_CODES: Record<string, string> = {
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
 
-// Converts "John 1:1-18" → "JHN.1.1-JHN.1.18" for API.Bible passage endpoint
+// Converts "John 1:1-18" → "JHN.1.1-JHN.1.18" or "Exodus 5" → "EXO.5"
 function toApiBiblePassageId(ref: string): string | null {
-  const match = ref.match(/^(.+?)\s+(\d+):(\d+)(?:-(\d+))?$/)
-  if (!match) return null
-  const [, bookName, chapter, startVerse, endVerse] = match
-  const code = OSIS_CODES[bookName]
-  if (!code) return null
-  const start = `${code}.${chapter}.${startVerse}`
-  return endVerse ? `${start}-${code}.${chapter}.${endVerse}` : start
+  const verseMatch = ref.match(/^(.+?)\s+(\d+):(\d+)(?:-(\d+))?$/)
+  if (verseMatch) {
+    const [, bookName, chapter, startVerse, endVerse] = verseMatch
+    const code = OSIS_CODES[bookName]
+    if (!code) return null
+    const start = `${code}.${chapter}.${startVerse}`
+    return endVerse ? `${start}-${code}.${chapter}.${endVerse}` : start
+  }
+  const chapterMatch = ref.match(/^(.+?)\s+(\d+)$/)
+  if (chapterMatch) {
+    const [, bookName, chapter] = chapterMatch
+    const code = OSIS_CODES[bookName]
+    if (!code) return null
+    return `${code}.${chapter}`
+  }
+  return null
 }
 
 async function fetchESV(ref: string, verseNumbers: boolean): Promise<string | null> {
