@@ -33,11 +33,12 @@ export default function NotebookPage() {
   const [chapterNum, setChapterNum] = useState(1)
 
   // UI
-  const [mode, setMode]                 = useState<Mode>('study')
-  const [activeTracks, setActiveTracks] = useState<Set<string>>(new Set(TRACKS.map(t => t.id)))
-  const [translation, setTranslation]   = useState<string>('ESV')
+  const [mode, setMode]                       = useState<Mode>('study')
+  const [activeTracks, setActiveTracks]       = useState<Set<string>>(new Set(TRACKS.map(t => t.id)))
+  const [translation, setTranslation]         = useState<string>('ESV')
+  const [showVerseNumbers, setShowVerseNumbers] = useState<boolean>(false)
 
-  // Passage text — keyed by "esvRef|translation"
+  // Passage text — keyed by "esvRef|translation|vn"
   const [passageTexts, setPassageTexts]       = useState<Record<string, string>>({})
   const [loadingPassages, setLoadingPassages] = useState<Set<string>>(new Set())
 
@@ -64,20 +65,20 @@ export default function NotebookPage() {
     return () => subscription.unsubscribe()
   }, [])
 
-  // Clear in-memory passage cache when translation changes
+  // Clear in-memory passage cache when translation or verse number pref changes
   useEffect(() => {
     setPassageTexts({})
-  }, [translation])
+  }, [translation, showVerseNumbers])
 
   // Fetch passage texts for current chapter
   useEffect(() => {
     if (!chapter) return
     chapter.chunks.forEach(chunk => {
-      const cacheKey = `${chunk.esvRef}|${translation}`
+      const cacheKey = `${chunk.esvRef}|${translation}|${showVerseNumbers ? '1' : '0'}`
       if (passageTexts[cacheKey] || loadingPassages.has(cacheKey)) return
       setLoadingPassages(prev => new Set(prev).add(cacheKey))
       fetch(
-        `/api/passage?book=${bookId}&chapter=${chapterNum}&ref=${encodeURIComponent(chunk.esvRef)}&translation=${translation}`
+        `/api/passage?book=${bookId}&chapter=${chapterNum}&ref=${encodeURIComponent(chunk.esvRef)}&translation=${translation}&vn=${showVerseNumbers}`
       )
         .then(r => r.json())
         .then(data => {
@@ -90,7 +91,7 @@ export default function NotebookPage() {
           setLoadingPassages(prev => { const n = new Set(prev); n.delete(cacheKey); return n })
         })
     })
-  }, [bookId, chapterNum, chapter, translation])
+  }, [bookId, chapterNum, chapter, translation, showVerseNumbers])
 
   // Load which chapters have notes (progress dots)
   useEffect(() => {
@@ -251,13 +252,28 @@ export default function NotebookPage() {
           </select>
         </div>
 
+        {/* Verse numbers toggle */}
+        <div className="px-3 py-2 border-b border-gray-100 flex-shrink-0 flex items-center justify-between">
+          <span className="text-xs text-gray-400">Verse numbers</span>
+          <button
+            onClick={() => setShowVerseNumbers(v => !v)}
+            className={`relative w-7 h-4 rounded-full transition-colors flex-shrink-0 ${
+              showVerseNumbers ? 'bg-gray-600' : 'bg-gray-200'
+            }`}
+          >
+            <span className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full shadow-sm transition-transform ${
+              showVerseNumbers ? 'translate-x-3' : ''
+            }`} />
+          </button>
+        </div>
+
         {/* Chapter list with pericope names as subtitles */}
         <div className="flex-1 overflow-y-auto">
           {book.chapters.map(ch => {
             const isActive   = chapterNum === ch.ch
             const hasNotes   = chaptersWithNotesLive.has(ch.ch)
             const firstChunk = ch.chunks[0]
-            const cacheKey   = firstChunk ? `${firstChunk.esvRef}|${translation}` : ''
+            const cacheKey   = firstChunk ? `${firstChunk.esvRef}|${translation}|${showVerseNumbers ? '1' : '0'}` : ''
             // Use pericope name; fall back to cached text snippet if pericope not set
             const subtitle   = firstChunk?.pericope
               ?? (passageTexts[cacheKey] ?? '')
@@ -355,7 +371,7 @@ export default function NotebookPage() {
           {/* Passage chunks */}
           {chapter.chunks.map(chunk => {
             const pKey                = passageKey(bookId, chapterNum, chunk.ref)
-            const cacheKey            = `${chunk.esvRef}|${translation}`
+            const cacheKey            = `${chunk.esvRef}|${translation}|${showVerseNumbers ? '1' : '0'}`
             const text                = passageTexts[cacheKey]
             const isLoading           = loadingPassages.has(cacheKey)
             const chunkCommunityNotes = filteredCommunityNotes.filter(n => n.passage_ref === pKey)

@@ -52,11 +52,12 @@ function toApiBiblePassageId(ref: string): string | null {
   return endVerse ? `${start}-${code}.${chapter}.${endVerse}` : start
 }
 
-async function fetchESV(ref: string): Promise<string | null> {
+async function fetchESV(ref: string, verseNumbers: boolean): Promise<string | null> {
   const key = process.env.ESV_API_KEY
   if (!key) return null
+  const vn = verseNumbers ? 'true' : 'false'
   const res = await fetch(
-    `https://api.esv.org/v3/passage/text/?q=${encodeURIComponent(ref)}&include-headings=false&include-footnotes=false&include-verse-numbers=false&include-short-copyright=false&include-passage-references=false`,
+    `https://api.esv.org/v3/passage/text/?q=${encodeURIComponent(ref)}&include-headings=false&include-footnotes=false&include-verse-numbers=${vn}&include-short-copyright=false&include-passage-references=false`,
     { headers: { Authorization: `Token ${key}` } }
   )
   if (!res.ok) return null
@@ -64,13 +65,14 @@ async function fetchESV(ref: string): Promise<string | null> {
   return data.passages?.[0]?.trim() ?? null
 }
 
-async function fetchApiBible(ref: string, translation: string): Promise<string | null> {
+async function fetchApiBible(ref: string, translation: string, verseNumbers: boolean): Promise<string | null> {
   const key       = process.env.BIBLE_API_KEY
   const bibleId   = BIBLE_API_IDS[translation]
   const passageId = toApiBiblePassageId(ref)
   if (!key || !bibleId || !passageId) return null
+  const vn = verseNumbers ? 'true' : 'false'
   const res = await fetch(
-    `https://api.scripture.api.bible/v1/bibles/${bibleId}/passages/${passageId}?content-type=text&include-verse-numbers=false&include-titles=false`,
+    `https://api.scripture.api.bible/v1/bibles/${bibleId}/passages/${passageId}?content-type=text&include-verse-numbers=${vn}&include-titles=false`,
     { headers: { 'api-key': key } }
   )
   if (!res.ok) return null
@@ -80,10 +82,11 @@ async function fetchApiBible(ref: string, translation: string): Promise<string |
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
-  const bookId      = searchParams.get('book')
-  const chapter     = searchParams.get('chapter')
-  const ref         = searchParams.get('ref')
-  const translation = (searchParams.get('translation') ?? 'ESV').toUpperCase()
+  const bookId        = searchParams.get('book')
+  const chapter       = searchParams.get('chapter')
+  const ref           = searchParams.get('ref')
+  const translation   = (searchParams.get('translation') ?? 'ESV').toUpperCase()
+  const verseNumbers  = searchParams.get('vn') === 'true'
 
   if (!bookId || !chapter || !ref) {
     return NextResponse.json({ error: 'Missing params' }, { status: 400 })
@@ -91,12 +94,19 @@ export async function GET(req: Request) {
 
   // ESV: always fetch fresh, never cache
   if (translation === 'ESV') {
-    const text = await fetchESV(ref)
+    const text = await fetchESV(ref, verseNumbers)
     if (!text) return NextResponse.json({ error: 'Could not fetch ESV text' }, { status: 502 })
     return NextResponse.json({ text, cached: false })
   }
 
-  // All other translations: check Supabase cache first
+  // Verse-numbers-on: skip cache (Supabase only stores the no-numbers version)
+  if (verseNumbers) {
+    const text = await fetchApiBible(ref, translation, true)
+    if (!text) return NextResponse.json({ error: `Could not fetch ${translation} text` }, { status: 502 })
+    return NextResponse.json({ text, cached: false })
+  }
+
+  // All other translations, verse numbers off: check Supabase cache first
   const { data: cached } = await supabase
     .from('passages')
     .select('text, fetched_at')
@@ -112,20 +122,19 @@ export async function GET(req: Request) {
     return NextResponse.json({ text: cached.text, cached: true })
   }
 
-  // Fetch fresh from API.Bible
-  const text = await fetchApiBible(ref, translation)
+  // Fetch fresh from API.Bible and cache
+  const text = await fetchApiBible(ref, translation, false)
   if (!text) {
     return NextResponse.json({ error: `Could not fetch ${translation} text` }, { status: 502 })
   }
 
-  // Upsert into Supabase cache
   await supabase.from('passages').upsert({
-    book_id:     bookId,
-    chapter:     parseInt(chapter),
+    book_id:    bookId,
+    chapter:    parseInt(chapter),
     ref,
     text,
     translation,
-    fetched_at:  new Date().toISOString(),
+    fetched_at: new Date().toISOString(),
   }, { onConflict: 'book_id,ref,translation' })
 
   return NextResponse.json({ text, cached: false })
