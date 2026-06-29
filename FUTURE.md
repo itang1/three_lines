@@ -18,9 +18,6 @@ Ask claude opus to do one more review
 **feat(notebook): theme trace track**
 A user-named optional track where the user specifies a thread they are following (e.g. "covenant", "exile", "light") and that label appears as a custom line throughout their reading. Stored as a user preference in the profiles table.
 
-**feat(notebook): reading plan layer**
-An optional structure overlaid on the notebook, e.g. Palmer's six-week John study or a chapter-a-day plan. Shows which passages are assigned for today and tracks completion.
-
 ---
 
 ## Community

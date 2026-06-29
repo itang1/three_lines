@@ -271,7 +271,7 @@ export default function NotebookPage() {
     setNoteVisibility(prev => prev[passageRef] !== undefined ? prev : { ...prev, [passageRef]: effectivePublic })
     clearTimeout(saveTimers.current[key])
     saveTimers.current[key] = setTimeout(async () => {
-      await supabase.from('notes').upsert({
+      const { error } = await supabase.from('notes').upsert({
         user_id: user.id,
         passage_ref: passageRef,
         track_id: trackId,
@@ -279,6 +279,7 @@ export default function NotebookPage() {
         is_public: effectivePublic,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id,passage_ref,track_id' })
+      if (error) console.error('[three-lines] note save failed:', error)
     }, 800)
   }
 
@@ -395,13 +396,14 @@ export default function NotebookPage() {
     if (!user) { setSearchLoading(false); return }
     setSearchLoading(true)
     searchTimer.current = setTimeout(async () => {
-      const { data } = await supabase.from('notes')
+      const { data, error } = await supabase.from('notes')
         .select('passage_ref, track_id, content')
         .eq('user_id', user.id)
         .ilike('content', `%${searchQuery.trim()}%`)
         .neq('content', '')
         .order('passage_ref')
         .limit(30)
+      if (error) console.error('[three-lines] search query failed:', error)
       setSearchResults(data ?? [])
       setSearchLoading(false)
     }, 300)
@@ -428,10 +430,16 @@ export default function NotebookPage() {
       .eq('user_id', user.id)
       .neq('content', '')
       .order('passage_ref')
-    const { data } = await (scope === 'book' ? base.like('passage_ref', `${bookId}:%`) : base)
+    const { data, error } = await (scope === 'book' ? base.like('passage_ref', `${bookId}:%`) : base)
     setExporting(false)
     setExportOpen(false)
-    if (!data || data.length === 0) return
+    if (error) { console.error('[three-lines] export query failed:', error); return }
+    if (!data || data.length === 0) {
+      alert(scope === 'book'
+        ? `No notes found for ${book.name}.`
+        : 'No notes found across any book.')
+      return
+    }
     const lines: string[] = [
       `Three Lines Notes — ${scope === 'book' ? book.name : 'All Books'}`,
       `Exported ${new Date().toLocaleDateString()}`,
@@ -450,17 +458,19 @@ export default function NotebookPage() {
       lines.push(`[${track?.label ?? note.track_id}]`)
       lines.push(note.content)
     })
-    const blob = new Blob([lines.join('\n')], { type: 'text/plain' })
+    const text = lines.join('\n')
+    const filename = scope === 'book'
+      ? `${book.name.toLowerCase().replace(/\s+/g, '-')}-notes.txt`
+      : 'three-lines-notes.txt'
+    const blob = new Blob([text], { type: 'text/plain' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = scope === 'book'
-      ? `${book.name.toLowerCase().replace(/\s+/g, '-')}-notes.txt`
-      : 'three-lines-notes.txt'
+    a.download = filename
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
   return (

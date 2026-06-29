@@ -38,7 +38,8 @@ export async function POST(req: Request) {
   }
 
   // Ensure the profile row exists (trigger may have silently failed)
-  const userId = linkBody.user?.id
+  // Note: generate_link returns the user object flat at the top level, not nested under "user"
+  const userId = linkBody.id
   if (userId) {
     await admin.from('profiles').upsert({
       id: userId,
