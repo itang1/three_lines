@@ -13,13 +13,6 @@ Update the README
 Ask claude opus to do one more review
 ---
 
-## Notebook
-
-**feat(notebook): theme trace track**
-A user-named optional track where the user specifies a thread they are following (e.g. "covenant", "exile", "light") and that label appears as a custom line throughout their reading. Stored as a user preference in the profiles table.
-
----
-
 ## Community
 
 **feat(community): filter community notes by book/chapter**

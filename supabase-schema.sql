@@ -46,6 +46,7 @@ create table if not exists passages (
 
 alter table profiles add column if not exists preferred_translation text not null default 'ESV';
 alter table profiles add column if not exists notes_public_default boolean not null default true;
+alter table profiles add column if not exists theme_track_label text;
 alter table passages add column if not exists translation text not null default 'ESV';
 
 -- Constraints

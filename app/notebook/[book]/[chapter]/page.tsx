@@ -25,6 +25,8 @@ type Reply = {
   profiles: { display_name: string }
 }
 
+const THEME_DOT = '#0891B2'
+
 export default function NotebookPage() {
   const router = useRouter()
   const params = useParams()
@@ -74,6 +76,9 @@ export default function NotebookPage() {
   const [searchLoading, setSearchLoading] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [themeLabel, setThemeLabel] = useState('')
+  const [themeInput, setThemeInput] = useState('')
+  const [editingTheme, setEditingTheme] = useState(false)
 
   const book = BOOKS.find(b => b.id === bookId) ?? BOOKS[0]
 
@@ -89,6 +94,16 @@ export default function NotebookPage() {
           .then(({ data: profile }) => {
             if (profile?.preferred_translation) setTranslation(profile.preferred_translation)
             if (profile?.notes_public_default != null) setNotesPublicDefault(profile.notes_public_default)
+          })
+        supabase.from('profiles')
+          .select('theme_track_label')
+          .eq('id', data.user.id)
+          .single()
+          .then(({ data: profile }) => {
+            if ((profile as any)?.theme_track_label) {
+              setThemeLabel((profile as any).theme_track_label)
+              setThemeInput((profile as any).theme_track_label)
+            }
           })
       }
     })
@@ -409,6 +424,25 @@ export default function NotebookPage() {
     }, 300)
   }, [searchQuery, user])
 
+  useEffect(() => {
+    setActiveTracks(prev => {
+      const next = new Set(prev)
+      themeLabel ? next.add('theme') : next.delete('theme')
+      return next
+    })
+  }, [themeLabel])
+
+  const saveTheme = async (label: string) => {
+    const trimmed = label.trim()
+    setThemeLabel(trimmed)
+    setThemeInput(trimmed)
+    setEditingTheme(false)
+    if (!user) return
+    await supabase.from('profiles')
+      .update({ theme_track_label: trimmed || null })
+      .eq('id', user.id)
+  }
+
   const goToResult = (passageRef: string) => {
     const parts = passageRef.split(':')
     const rBookId = parts[0]
@@ -473,6 +507,18 @@ export default function NotebookPage() {
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
+  const themeTrack = themeLabel ? {
+    id: 'theme',
+    label: themeLabel,
+    dot: THEME_DOT,
+    placeholder: `Trace "${themeLabel}" through this passage.`,
+  } : null
+
+  const allActiveTracks = [
+    ...TRACKS.filter(t => activeTracks.has(t.id)),
+    ...(themeTrack && activeTracks.has('theme') ? [themeTrack] : []),
+  ]
+
   return (
     <div className="flex h-[calc(100vh-48px)]">
 
@@ -533,7 +579,7 @@ export default function NotebookPage() {
 
         {/* Verse numbers toggle */}
         <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-800 flex-shrink-0 flex items-center justify-between">
-          <span className="text-xs text-gray-400">Show Verse Numbers</span>
+          <span className="text-xs text-gray-600 dark:text-gray-300">Show Verse Numbers</span>
           <button
             onClick={() => setShowVerseNumbers(v => !v)}
             aria-label="Show verse numbers"
@@ -563,13 +609,13 @@ export default function NotebookPage() {
         <div className="flex-1 overflow-y-auto">
           {searchQuery.trim() ? (
             searchLoading ? (
-              <div className="px-3 py-4 text-xs text-gray-400 animate-pulse">Searching…</div>
+              <div className="px-3 py-4 text-xs text-gray-500 dark:text-gray-400 animate-pulse">Searching…</div>
             ) : !user ? (
-              <div className="px-3 py-4 text-xs text-gray-400 italic">
+              <div className="px-3 py-4 text-xs text-gray-500 dark:text-gray-400 italic">
                 <a href="/login" className="underline">Sign in</a> to search your notes.
               </div>
             ) : searchResults.length === 0 ? (
-              <div className="px-3 py-4 text-xs text-gray-400 italic">No notes found.</div>
+              <div className="px-3 py-4 text-xs text-gray-500 dark:text-gray-400 italic">No notes found.</div>
             ) : searchResults.map((r, i) => {
               const parts = r.passage_ref.split(':')
               const rBook = BOOKS.find(b => b.id === parts[0])
@@ -584,16 +630,16 @@ export default function NotebookPage() {
                   onClick={() => goToResult(r.passage_ref)}
                   className="w-full text-left px-3 py-2.5 border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                 >
-                  <div className="text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-0.5">
+                  <div className="text-[10px] font-medium text-gray-700 dark:text-gray-200 mb-0.5">
                     {rBook?.name ?? parts[0]} {parts[1]}:{parts.slice(2).join(':')}
                   </div>
                   {rTrack && (
                     <div className="flex items-center gap-1 mb-1">
                       <span className="w-1 h-1 rounded-full flex-shrink-0" style={{ background: rTrack.dot }} />
-                      <span className="text-[9px] text-gray-400">{rTrack.label}</span>
+                      <span className="text-[9px] text-gray-500 dark:text-gray-400">{rTrack.label}</span>
                     </div>
                   )}
-                  <div className="text-[10px] text-gray-500 dark:text-gray-400 leading-snug line-clamp-2">
+                  <div className="text-[10px] text-gray-600 dark:text-gray-400 leading-snug line-clamp-2">
                     {start > 0 ? '…' : ''}{snippet.trim()}{r.content.length > start + snippet.length ? '…' : ''}
                   </div>
                 </button>
@@ -626,11 +672,11 @@ export default function NotebookPage() {
                 }`} />
                 <div className="min-w-0">
                   <div className={`text-xs font-medium leading-tight mb-0.5 ${
-                    isActive ? 'text-violet-900 dark:text-violet-300' : 'text-gray-600 dark:text-gray-400'
+                    isActive ? 'text-violet-900 dark:text-violet-300' : 'text-gray-700 dark:text-gray-300'
                   }`}>
                     Chapter {ch.ch}
                   </div>
-                  <div className="text-[10px] text-gray-400 dark:text-gray-600 leading-snug line-clamp-2">
+                  <div className="text-[10px] text-gray-400 dark:text-gray-500 leading-snug line-clamp-2">
                     {subtitle}
                   </div>
                 </div>
@@ -645,7 +691,7 @@ export default function NotebookPage() {
           <div className="border-t border-gray-100 dark:border-gray-800 flex-shrink-0 relative">
             <button
               onClick={() => setExportOpen(v => !v)}
-              className="w-full text-left px-3 py-2.5 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              className="w-full text-left px-3 py-2.5 text-xs text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
             >
               ↓ Export notes
             </button>
@@ -654,14 +700,14 @@ export default function NotebookPage() {
                 <button
                   onClick={() => exportNotes('book')}
                   disabled={exporting}
-                  className="w-full text-left px-3 py-2.5 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors border-b border-gray-100 dark:border-gray-800 disabled:opacity-40"
+                  className="w-full text-left px-3 py-2.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors border-b border-gray-100 dark:border-gray-800 disabled:opacity-40"
                 >
                   {book.name}
                 </button>
                 <button
                   onClick={() => exportNotes('all')}
                   disabled={exporting}
-                  className="w-full text-left px-3 py-2.5 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-40"
+                  className="w-full text-left px-3 py-2.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-40"
                 >
                   All books
                 </button>
@@ -736,6 +782,53 @@ export default function NotebookPage() {
                   {t.label}
                 </button>
               ))}
+
+              {/* User's own custom line */}
+              {editingTheme ? (
+                <form
+                  onSubmit={e => { e.preventDefault(); saveTheme(themeInput) }}
+                  className="flex items-center gap-1.5"
+                >
+                  <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">My line:</span>
+                  <input
+                    autoFocus
+                    type="text"
+                    value={themeInput}
+                    onChange={e => setThemeInput(e.target.value)}
+                    placeholder="name it (e.g. covenant)"
+                    maxLength={40}
+                    className="text-xs border border-gray-300 dark:border-gray-600 rounded-full px-3 py-1 outline-none bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 w-40 focus:border-gray-500 dark:focus:border-gray-400"
+                  />
+                  <button type="submit" className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 px-1" title="Save">✓</button>
+                  <button type="button" onClick={() => { setEditingTheme(false); setThemeInput(themeLabel) }} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1" title="Cancel">✕</button>
+                </form>
+              ) : themeLabel ? (
+                <button
+                  onClick={() => toggleTrack('theme')}
+                  aria-pressed={activeTracks.has('theme')}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs transition-colors ${
+                    activeTracks.has('theme')
+                      ? 'bg-gray-100 border-gray-300 text-gray-800 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200'
+                      : 'border-gray-200 text-gray-400 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800'
+                  }`}
+                >
+                  <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: THEME_DOT }} />
+                  {themeLabel}
+                  <span
+                    role="button"
+                    aria-label="Edit theme"
+                    onClick={e => { e.stopPropagation(); setThemeInput(themeLabel); setEditingTheme(true) }}
+                    className="ml-0.5 text-[10px] opacity-40 hover:opacity-100 transition-opacity"
+                  >✎</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => { setThemeInput(''); setEditingTheme(true) }}
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-dashed border-gray-300 dark:border-gray-600 text-xs text-gray-400 dark:text-gray-500 hover:border-gray-400 dark:hover:border-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                >
+                  + create your own line
+                </button>
+              )}
             </div>
           </div>
 
@@ -794,7 +887,7 @@ export default function NotebookPage() {
                       {/* Study mode */}
                       {mode === 'study' && (
                         <div className="border border-t-0 border-gray-100 dark:border-gray-800 rounded-b-lg overflow-hidden">
-                          {TRACKS.filter(t => activeTracks.has(t.id)).map((t, i) => {
+                          {allActiveTracks.map((t, i) => {
                             const noteKey = `${pKey}|${t.id}`
                             return (
                             <div
@@ -852,7 +945,9 @@ export default function NotebookPage() {
                               No community notes yet for this passage.
                             </div>
                           ) : chunkCommunityNotes.map(note => {
-                            const track       = TRACKS.find(t => t.id === note.track_id)
+                            const track       = note.track_id === 'theme'
+                              ? { label: themeLabel || 'Theme', dot: THEME_DOT }
+                              : TRACKS.find(t => t.id === note.track_id)
                             const isOpen      = openThreads.has(note.id)
                             const noteReplies = replies[note.id] ?? []
                             const initials    = note.profiles?.display_name
