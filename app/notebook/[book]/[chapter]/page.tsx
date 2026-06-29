@@ -409,17 +409,18 @@ export default function NotebookPage() {
 
       {/* Sidebar — fixed overlay on mobile, static on desktop */}
       <aside className={`
-        fixed top-12 bottom-0 left-0 z-40 bg-white
+        fixed top-12 bottom-0 left-0 z-40 bg-white dark:bg-gray-900
         md:static md:top-auto md:bottom-auto md:z-auto
-        w-52 border-r border-gray-100 flex flex-col flex-shrink-0
+        w-52 border-r border-gray-100 dark:border-gray-800 flex flex-col flex-shrink-0
         transition-transform duration-200 md:transition-none md:translate-x-0
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
 
         {/* Version selector */}
-        <div className="p-3 border-b border-gray-100 flex-shrink-0">
+        <div className="p-3 border-b border-gray-100 dark:border-gray-800 flex-shrink-0">
           <select
-            className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 bg-white text-gray-700 outline-none"
+            aria-label="Translation"
+            className="w-full text-xs border border-gray-200 dark:border-gray-700 rounded px-2 py-1.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 outline-none"
             value={translation}
             onChange={e => {
               setTranslation(e.target.value)
@@ -439,10 +440,11 @@ export default function NotebookPage() {
         </div>
 
         {/* Book picker */}
-        <div className="p-3 border-b border-gray-100 flex-shrink-0">
+        <div className="p-3 border-b border-gray-100 dark:border-gray-800 flex-shrink-0">
           <select
             ref={bookSelectRef}
-            className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 bg-white text-gray-700 outline-none"
+            aria-label="Book"
+            className="w-full text-xs border border-gray-200 dark:border-gray-700 rounded px-2 py-1.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 outline-none"
             value={bookId}
             onChange={e => handleBookChange(e.target.value)}
           >
@@ -453,12 +455,14 @@ export default function NotebookPage() {
         </div>
 
         {/* Verse numbers toggle */}
-        <div className="px-3 py-2 border-b border-gray-100 flex-shrink-0 flex items-center justify-between">
+        <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-800 flex-shrink-0 flex items-center justify-between">
           <span className="text-xs text-gray-400">Show Verse Numbers</span>
           <button
             onClick={() => setShowVerseNumbers(v => !v)}
+            aria-label="Show verse numbers"
+            aria-pressed={showVerseNumbers}
             className={`relative w-7 h-4 rounded-full transition-colors flex-shrink-0 ${
-              showVerseNumbers ? 'bg-gray-600' : 'bg-gray-200'
+              showVerseNumbers ? 'bg-gray-600' : 'bg-gray-200 dark:bg-gray-700'
             }`}
           >
             <span className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full shadow-sm transition-transform ${
@@ -469,12 +473,14 @@ export default function NotebookPage() {
 
         {/* Global note visibility default */}
         {user && (
-          <div className="px-3 py-2 border-b border-gray-100 flex-shrink-0 flex items-center justify-between">
+          <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-800 flex-shrink-0 flex items-center justify-between">
             <span className="text-xs text-gray-400">Public by default</span>
             <button
               onClick={() => saveNotesPublicDefault(!notesPublicDefault)}
+              aria-label="Notes public by default"
+              aria-pressed={notesPublicDefault}
               className={`relative w-7 h-4 rounded-full transition-colors flex-shrink-0 ${
-                notesPublicDefault ? 'bg-gray-600' : 'bg-gray-200'
+                notesPublicDefault ? 'bg-gray-600' : 'bg-gray-200 dark:bg-gray-700'
               }`}
             >
               <span className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full shadow-sm transition-transform ${
@@ -501,22 +507,22 @@ export default function NotebookPage() {
               <button
                 key={ch.ch}
                 onClick={() => scrollToChapter(ch.ch)}
-                className={`w-full text-left py-2.5 border-b border-gray-50 transition-colors flex gap-2.5 items-start ${
+                className={`w-full text-left py-2.5 border-b border-gray-50 dark:border-gray-800 transition-colors flex gap-2.5 items-start ${
                   isActive
-                    ? 'bg-violet-100 border-l-2 border-l-violet-500 pl-2.5 pr-3'
-                    : 'hover:bg-gray-50 pl-3 pr-3 border-l-2 border-l-transparent'
+                    ? 'bg-violet-100 dark:bg-violet-950 border-l-2 border-l-violet-500 dark:border-l-violet-400 pl-2.5 pr-3'
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-800 pl-3 pr-3 border-l-2 border-l-transparent'
                 }`}
               >
                 <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5 transition-colors ${
-                  hasNotes ? 'bg-gray-400' : 'bg-gray-200'
+                  hasNotes ? 'bg-gray-400 dark:bg-gray-500' : 'bg-gray-200 dark:bg-gray-700'
                 }`} />
                 <div className="min-w-0">
                   <div className={`text-xs font-medium leading-tight mb-0.5 ${
-                    isActive ? 'text-violet-900' : 'text-gray-600'
+                    isActive ? 'text-violet-900 dark:text-violet-300' : 'text-gray-600 dark:text-gray-400'
                   }`}>
                     Chapter {ch.ch}
                   </div>
-                  <div className="text-[10px] text-gray-400 leading-snug line-clamp-2">
+                  <div className="text-[10px] text-gray-400 dark:text-gray-600 leading-snug line-clamp-2">
                     {subtitle}
                   </div>
                 </div>
@@ -530,27 +536,27 @@ export default function NotebookPage() {
       <div ref={scrollContainer} className="flex-1 overflow-y-auto">
 
         {/* Sticky chapter heading — keeps the reader oriented in long chapters */}
-        <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-gray-100">
+        <div className="sticky top-0 z-20 bg-white/95 dark:bg-gray-950/95 backdrop-blur-sm border-b border-gray-100 dark:border-gray-800">
           <div className="max-w-2xl mx-auto px-3 md:px-6 py-2.5 flex items-center gap-2">
             <button
-              className="md:hidden p-1 text-gray-400 hover:text-gray-700"
+              className="md:hidden p-1 text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
               onClick={() => setSidebarOpen(v => !v)}
               aria-label="Toggle sidebar"
             >☰</button>
-            <h2 className="text-base font-serif font-medium text-gray-900">{book.name}</h2>
+            <h2 className="text-base font-serif font-medium text-gray-900 dark:text-gray-100">{book.name}</h2>
             <span className="text-xs text-gray-400 tracking-wider uppercase flex-1">Chapter {activeChapter}</span>
             <div className="flex">
               <button
                 onClick={() => activeChapter > 1 && scrollToChapter(activeChapter - 1)}
                 disabled={activeChapter === 1}
                 title="Previous chapter (k / ←)"
-                className="px-2 py-1 text-base text-gray-400 hover:text-gray-700 disabled:opacity-30"
+                className="px-2 py-1 text-base text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 disabled:opacity-30"
               >‹</button>
               <button
                 onClick={() => activeChapter < book.chapters.length && scrollToChapter(activeChapter + 1)}
                 disabled={activeChapter === book.chapters.length}
                 title="Next chapter (j / →)"
-                className="px-2 py-1 text-base text-gray-400 hover:text-gray-700 disabled:opacity-30"
+                className="px-2 py-1 text-base text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 disabled:opacity-30"
               >›</button>
             </div>
           </div>
@@ -560,13 +566,15 @@ export default function NotebookPage() {
 
           {/* Mode toggle + track pills */}
           <div className="flex items-center gap-3 mb-8 flex-wrap">
-            <div className="flex border border-gray-200 rounded-md overflow-hidden">
+            <div className="flex border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
               {(['study', 'community'] as Mode[]).map(m => (
                 <button
                   key={m}
                   onClick={() => setMode(m)}
                   className={`px-4 py-1.5 text-sm transition-colors ${
-                    mode === m ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:text-gray-600'
+                    mode === m
+                      ? 'bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-100'
+                      : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
                   }`}
                 >
                   {m === 'study' ? '📖 My notes' : '👥 Community'}
@@ -576,11 +584,13 @@ export default function NotebookPage() {
             {user && (
               <button
                 onClick={() => setPrivateMode(v => !v)}
+                aria-pressed={privateMode}
+                aria-label={privateMode ? 'Exit private session' : 'Study privately'}
                 title={privateMode ? 'Exit private session — notes will follow your default visibility' : 'Study privately — all notes hidden from community until you turn this off'}
                 className={`px-3 py-1.5 text-sm border rounded-md transition-colors ${
                   privateMode
-                    ? 'bg-gray-900 border-gray-900 text-white'
-                    : 'border-gray-200 text-gray-400 hover:text-gray-600'
+                    ? 'bg-gray-900 border-gray-900 text-white dark:bg-white dark:border-white dark:text-gray-900'
+                    : 'border-gray-200 dark:border-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
                 }`}
               >
                 {privateMode ? '🔒 Private' : '🔓 Private'}
@@ -591,13 +601,14 @@ export default function NotebookPage() {
                 <button
                   key={t.id}
                   onClick={() => toggleTrack(t.id)}
+                  aria-pressed={activeTracks.has(t.id)}
                   className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs transition-colors ${
                     activeTracks.has(t.id)
-                      ? 'bg-gray-100 border-gray-300 text-gray-800'
-                      : 'border-gray-200 text-gray-400 hover:bg-gray-50'
+                      ? 'bg-gray-100 border-gray-300 text-gray-800 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200'
+                      : 'border-gray-200 text-gray-400 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800'
                   }`}
                 >
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: t.dot }} />
+                  <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full" style={{ background: t.dot }} />
                   {t.label}
                 </button>
               ))}
@@ -620,7 +631,7 @@ export default function NotebookPage() {
                 }}
                 className="mb-10"
               >
-                <h3 className="text-sm font-medium text-gray-400 tracking-wider uppercase mb-4 pt-4 border-t border-gray-100">
+                <h3 className="text-sm font-medium text-gray-400 tracking-wider uppercase mb-4 pt-4 border-t border-gray-100 dark:border-gray-800">
                   Chapter {ch.ch}
                 </h3>
 
@@ -635,7 +646,7 @@ export default function NotebookPage() {
                     <div key={chunk.ref} className="mb-5">
 
                       {/* Passage text */}
-                      <div className="border border-gray-100 rounded-t-lg p-4 bg-white">
+                      <div className="border border-gray-100 dark:border-gray-800 rounded-t-lg p-4 bg-white dark:bg-gray-900">
                         <div className="flex items-baseline justify-between mb-2">
                           <span className="text-[10px] font-medium tracking-wider text-gray-400">
                             {book.name} {chunk.ref}
@@ -646,10 +657,10 @@ export default function NotebookPage() {
                         </div>
                         {isLoading ? (
                           <div className="h-16 flex items-center">
-                            <span className="text-xs text-gray-300 animate-pulse">Loading passage...</span>
+                            <span className="text-xs text-gray-300 dark:text-gray-600 animate-pulse">Loading passage...</span>
                           </div>
                         ) : text ? (
-                          <p className="text-sm font-serif leading-relaxed text-gray-800 whitespace-pre-line">{text}</p>
+                          <p className="text-sm font-serif leading-relaxed text-gray-800 dark:text-gray-200 whitespace-pre-line">{text}</p>
                         ) : (
                           <p className="text-xs text-gray-400 italic">Could not load passage. Check your API key.</p>
                         )}
@@ -657,18 +668,18 @@ export default function NotebookPage() {
 
                       {/* Study mode */}
                       {mode === 'study' && (
-                        <div className="border border-t-0 border-gray-100 rounded-b-lg overflow-hidden">
+                        <div className="border border-t-0 border-gray-100 dark:border-gray-800 rounded-b-lg overflow-hidden">
                           {TRACKS.filter(t => activeTracks.has(t.id)).map((t, i) => {
                             const noteKey = `${pKey}|${t.id}`
                             const isNotePublic = !privateMode && (noteVisibility[noteKey] ?? notesPublicDefault)
                             return (
                             <div
                               key={t.id}
-                              className={`flex items-stretch ${i > 0 ? 'border-t border-gray-100' : ''}`}
+                              className={`flex items-stretch ${i > 0 ? 'border-t border-gray-100 dark:border-gray-800' : ''}`}
                             >
-                              <div className="w-36 flex-shrink-0 flex items-center px-3 py-2 bg-gray-50 border-r border-gray-100 self-stretch justify-between gap-1">
+                              <div className="w-36 flex-shrink-0 flex items-center px-3 py-2 bg-gray-50 dark:bg-gray-800 border-r border-gray-100 dark:border-gray-700 self-stretch justify-between gap-1">
                                 <div className="flex items-center gap-1.5 min-w-0">
-                                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: t.dot }} />
+                                  <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: t.dot }} />
                                   <span className="text-[10px] font-medium text-gray-400 leading-tight truncate">{t.label}</span>
                                 </div>
                                 {user && (
@@ -691,7 +702,8 @@ export default function NotebookPage() {
                                 )}
                               </div>
                               <textarea
-                                className="flex-1 text-sm p-2.5 outline-none resize-none bg-white text-gray-800 placeholder-gray-300 min-h-[38px] overflow-hidden"
+                                aria-label={`${t.label} — ${book.name} ${chunk.ref}`}
+                                className="flex-1 text-sm p-2.5 outline-none resize-none bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 placeholder-gray-300 dark:placeholder-gray-600 min-h-[38px] overflow-hidden"
                                 placeholder={t.placeholder}
                                 value={notes[noteKey] ?? ''}
                                 rows={1}
@@ -704,7 +716,7 @@ export default function NotebookPage() {
                             )
                           })}
                           {!user && (
-                            <div className="px-4 py-2 bg-amber-50 border-t border-amber-100 text-xs text-amber-700">
+                            <div className="px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border-t border-amber-100 dark:border-amber-800/30 text-xs text-amber-700 dark:text-amber-400">
                               <a href="/login" className="underline">Sign in</a> to save your notes.
                             </div>
                           )}
@@ -713,7 +725,7 @@ export default function NotebookPage() {
 
                       {/* Community mode */}
                       {mode === 'community' && (
-                        <div className="border border-t-0 border-gray-100 rounded-b-lg overflow-hidden bg-white">
+                        <div className="border border-t-0 border-gray-100 dark:border-gray-800 rounded-b-lg overflow-hidden bg-white dark:bg-gray-900">
                           {chunkCommunityNotes.length === 0 ? (
                             <div className="px-4 py-4 text-xs text-gray-400 italic">
                               No community notes yet for this passage.
@@ -726,12 +738,12 @@ export default function NotebookPage() {
                               ?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() ?? '?'
 
                             return (
-                              <div key={note.id} className="border-b border-gray-100 last:border-b-0 p-4">
+                              <div key={note.id} className="border-b border-gray-100 dark:border-gray-800 last:border-b-0 p-4">
                                 <div className="flex items-center gap-2 mb-2">
-                                  <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-semibold text-gray-500 flex-shrink-0">
+                                  <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-[10px] font-semibold text-gray-500 dark:text-gray-400 flex-shrink-0">
                                     {initials}
                                   </div>
-                                  <span className="text-xs font-medium text-gray-700">{note.profiles?.display_name}</span>
+                                  <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{note.profiles?.display_name}</span>
                                   {track && (
                                     <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: track.dot + '18', color: track.dot }}>
                                       {track.label}
@@ -741,9 +753,9 @@ export default function NotebookPage() {
                                     {new Date(note.created_at).toLocaleDateString()}
                                   </span>
                                 </div>
-                                <p className="text-sm text-gray-600 leading-relaxed ml-8 mb-2">{note.content}</p>
+                                <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed ml-8 mb-2">{note.content}</p>
                                 <button
-                                  className="ml-8 text-[11px] text-gray-400 hover:text-gray-600"
+                                  className="ml-8 text-[11px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                                   onClick={() => toggleThread(note.id)}
                                 >
                                   {isOpen
@@ -753,11 +765,11 @@ export default function NotebookPage() {
                                       : 'Reply'}
                                 </button>
                                 {isOpen && (
-                                  <div className="ml-8 mt-3 pl-3 border-l border-gray-100">
+                                  <div className="ml-8 mt-3 pl-3 border-l border-gray-100 dark:border-gray-800">
                                     {noteReplies.map(r => (
-                                      <div key={r.id} className="py-2 border-b border-gray-50 last:border-b-0">
+                                      <div key={r.id} className="py-2 border-b border-gray-50 dark:border-gray-800 last:border-b-0">
                                         <div className="flex items-center gap-2 mb-1">
-                                          <span className="text-[10px] font-medium text-gray-600">{r.profiles?.display_name}</span>
+                                          <span className="text-[10px] font-medium text-gray-600 dark:text-gray-400">{r.profiles?.display_name}</span>
                                           <span className="text-[10px] text-gray-400">{new Date(r.created_at).toLocaleDateString()}</span>
                                         </div>
                                         <p className="text-xs text-gray-500 leading-relaxed">{r.content}</p>
@@ -766,7 +778,7 @@ export default function NotebookPage() {
                                     {user && (
                                       <div className="flex gap-2 pt-2">
                                         <input
-                                          className="flex-1 border border-gray-200 rounded px-2 py-1.5 text-xs outline-none"
+                                          className="flex-1 border border-gray-200 dark:border-gray-700 rounded px-2 py-1.5 text-xs outline-none bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
                                           placeholder="Write a reply..."
                                           value={replyText[note.id] ?? ''}
                                           onChange={e => setReplyText(prev => ({ ...prev, [note.id]: e.target.value }))}
@@ -774,7 +786,7 @@ export default function NotebookPage() {
                                         />
                                         <button
                                           onClick={() => postReply(note.id, pKey)}
-                                          className="text-xs px-3 py-1.5 bg-gray-900 text-white rounded hover:bg-gray-700"
+                                          className="text-xs px-3 py-1.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded hover:bg-gray-700 dark:hover:bg-gray-200"
                                         >
                                           Post
                                         </button>

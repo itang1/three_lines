@@ -9,8 +9,8 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
 
   return (
     <div className="max-w-xl mx-auto px-6 py-16">
-      <h1 className="text-3xl font-serif font-medium text-gray-900 mb-4">Something went wrong</h1>
-      <p className="text-sm text-gray-500 mb-8">
+      <h1 className="text-3xl font-serif font-medium text-gray-900 dark:text-gray-100 mb-4">Something went wrong</h1>
+      <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">
         An unexpected error occurred. You can try again or return to the notebook.
       </p>
       <div className="flex gap-3">

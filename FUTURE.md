@@ -24,22 +24,6 @@ a honeypot field, basic length/format validation, and rate limiting (ties into t
 "rate limiting on community posts" item — do them together). Also move off
 `from: onboarding@resend.dev` to a verified domain or messages will land in spam.
 
-### P2 — Polish that affects trust and conversion
-
-**fix(a11y): controls are unlabeled and color-only**
-The translation and book `<select>`s have no associated label, the verse-numbers toggle is a
-bare `<button>` with no `aria-label`/`aria-pressed`, and tracks are distinguished only by a
-colored dot (a problem for color-blind users and screen readers). Add labels, `aria-*`
-attributes, and a text/shape cue alongside the dot.
-
-
-**feat(onboarding): the empty notebook doesn't teach the method**
-A first-time, signed-out visitor lands on John 1 with six empty text boxes and no example of
-what a filled-in note looks like. Pre-fill one passage with a short worked example (or a
-dismissible "see an example" overlay) so people grasp the three-lines method in five seconds
-instead of having to read Instructions first. This is the biggest conversion lever after the
-P0 fixes.
-
 ---
 
 ## User Feedback — Things to Test
@@ -150,10 +134,6 @@ compliance if the site ever has users in the EU.
 
 ## Commits — Design and UX
 
-**feat(ux): dark mode**
-A meditative reading tool lends itself to dark mode. Tailwind supports this with the
-dark: variant and a class toggle on the root element.
-
 ---
 
 ## Commits — iOS App
@@ -178,45 +158,3 @@ Rewrites the UI layer in React Native (different components, no Tailwind) while 
 all Supabase backend logic and data structure. True native iOS app. Takes longer to
 build but produces the best mobile experience. Expo is the easiest starting point.
 Realistically a few months of work to reach feature parity with the web app.
-
----
-
-## Marketing and Growth
-
-The real competitors are pen and paper, Notion, and Word documents — not YouVersion.
-The people who want this are doing analytical Bible reading already, just without a
-dedicated tool.
-
-**Phase 1 — Personal network (first 50 users)**
-- Share with people you know personally first
-- Seminary students and Bible study leaders are the best early users — they are
-  already doing this kind of reading, just on paper
-- Collect feedback using the questions in the User Feedback section above
-
-**Phase 2 — Content**
-- Write up the three-lines method as a standalone article or blog post, showing what
-  filled-in notes actually look like on a real passage
-- The origin story (Don's group, graph paper, 1985) is genuinely interesting and worth
-  telling in full
-- Post on Substack or a personal blog with a link to the app
-- The About page already has the bones of this story
-
-**Phase 3 — Community outreach**
-- Find communities where this audience already gathers: seminary subreddits, Bible
-  study Facebook groups, church small group leader forums
-- Participate genuinely before mentioning the app
-- Reach out directly to one or two professors or pastors whose work you respect and
-  ask if they would be willing to try it — a single endorsement from a credible voice
-  in this space is worth more than any ad
-
-**Phase 4 — SEO and discoverability**
-- The Instructions and About pages already contain good natural language about the
-  method — this is a foundation for search
-- A blog with regular posts about Bible study method will build organic traffic over time
-- "Earl Palmer three lines method" is a low-competition search term that this site
-  could realistically own
-
-**Things not worth doing yet**
-- Paid advertising before the product is stable and users are retaining
-- Social media presence before there is content to point to
-- App Store submission before there is clear demand from mobile users

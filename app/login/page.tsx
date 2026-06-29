@@ -6,6 +6,8 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [devError, setDevError] = useState('')
+  const [devLoading, setDevLoading] = useState(false)
   const supabase = createClient()
 
   const signInWithEmail = async () => {
@@ -25,22 +27,50 @@ export default function LoginPage() {
     })
   }
 
+  const signInAsGuest = async () => {
+    setDevError('')
+    setDevLoading(true)
+    const res = await fetch('/api/dev-auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ origin: window.location.origin }),
+    })
+    const json = await res.json()
+    if (!res.ok || json.error) { setDevError(json.error ?? 'Failed'); setDevLoading(false); return }
+    window.location.href = json.url
+  }
+
   return (
     <div className="max-w-sm mx-auto px-6 py-20">
-      <h1 className="text-2xl font-serif font-medium text-gray-900 mb-2">Sign in</h1>
-      <p className="text-sm text-gray-500 mb-8">
+      <h1 className="text-2xl font-serif font-medium text-gray-900 dark:text-gray-100 mb-2">Sign in</h1>
+      <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">
         Create an account to save your notes and share commentary with others.
       </p>
 
+      {process.env.NODE_ENV === 'development' && (
+        <div className="mb-6">
+          <button
+            onClick={signInAsGuest}
+            disabled={devLoading}
+            className="w-full border border-gray-800 bg-gray-900 text-white rounded-md px-4 py-2.5 text-sm hover:bg-gray-700 disabled:opacity-50"
+          >
+            {devLoading ? 'Signing in…' : 'Dev: sign in as anonymous user'}
+          </button>
+          {devError && (
+            <p className="mt-2 text-xs text-red-500">{devError}</p>
+          )}
+        </div>
+      )}
+
       {sent ? (
-        <div className="p-4 bg-green-50 border border-green-100 rounded-md text-sm text-green-700">
+        <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800/30 rounded-md text-sm text-green-700 dark:text-green-400">
           Check your email — we sent a sign-in link to <strong>{email}</strong>.
         </div>
       ) : (
         <>
           <button
             onClick={signInWithGoogle}
-            className="w-full flex items-center justify-center gap-2 border border-gray-200 rounded-md px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 mb-4"
+            className="w-full flex items-center justify-center gap-2 border border-gray-200 dark:border-gray-700 rounded-md px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 mb-4"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -52,9 +82,9 @@ export default function LoginPage() {
           </button>
 
           <div className="flex items-center gap-3 mb-4">
-            <div className="flex-1 h-px bg-gray-100" />
-            <span className="text-xs text-gray-400">or</span>
-            <div className="flex-1 h-px bg-gray-100" />
+            <div className="flex-1 h-px bg-gray-100 dark:bg-gray-800" />
+            <span className="text-xs text-gray-400 dark:text-gray-500">or</span>
+            <div className="flex-1 h-px bg-gray-100 dark:bg-gray-800" />
           </div>
 
           <input
@@ -63,7 +93,7 @@ export default function LoginPage() {
             value={email}
             onChange={e => setEmail(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && signInWithEmail()}
-            className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm mb-3 outline-none focus:border-gray-400"
+            className="w-full border border-gray-200 dark:border-gray-700 rounded-md px-3 py-2 text-sm mb-3 outline-none focus:border-gray-400 dark:focus:border-gray-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-600"
           />
           <button
             onClick={signInWithEmail}
@@ -72,7 +102,7 @@ export default function LoginPage() {
           >
             {loading ? 'Sending…' : 'Send magic link'}
           </button>
-          <p className="text-xs text-gray-400 mt-3 text-center">
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-3 text-center">
             No password needed — we'll email you a one-click sign-in link.
           </p>
         </>

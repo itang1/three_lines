@@ -46,8 +46,8 @@ create table passages (
 create or replace function handle_new_user()
 returns trigger as $$
 begin
-  insert into profiles (id, display_name)
-  values (new.id, coalesce(new.raw_user_meta_data->>'full_name', 'Anonymous'));
+  insert into profiles (id, display_name, notes_public_default)
+  values (new.id, coalesce(new.raw_user_meta_data->>'full_name', 'Anonymous'), false);
   return new;
 end;
 $$ language plpgsql security definer;
