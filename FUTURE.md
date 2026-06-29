@@ -9,18 +9,11 @@ No favicon, no `robots.txt`, no `sitemap.xml`, no Open Graph or Twitter card tag
 - Add `app/robots.ts`, `app/sitemap.ts`, and `app/icon.png`.
 - "Earl Palmer three lines method" is a low-competition term this site could own.
 
-**feat(security): the contact form is an open spam relay**
-`app/api/contact/route.ts` accepts any JSON with no validation, no honeypot, no rate limiting, and no email-format check. Add a honeypot field, basic length/format validation, and rate limiting. Also move off `from: onboarding@resend.dev` to a verified domain or messages will land in spam.
-
+Update the README
+Ask claude opus to do one more review
 ---
 
 ## Notebook
-
-**feat(notebook): search your own notes**
-Full-text search across everything the user has written, across all books and tracks. Supabase supports full-text search natively with `to_tsvector`. A search bar above the passage list that filters or highlights matching chunks.
-
-**feat(notebook): export notes**
-Download all notes for a book (or all books) as a formatted PDF or plain text file. Useful for printing, archiving, or bringing notes into a study group.
 
 **feat(notebook): theme trace track**
 A user-named optional track where the user specifies a thread they are following (e.g. "covenant", "exile", "light") and that label appears as a custom line throughout their reading. Stored as a user preference in the profiles table.

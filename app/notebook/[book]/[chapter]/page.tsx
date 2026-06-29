@@ -66,8 +66,14 @@ export default function NotebookPage() {
   const bookSelectRef   = useRef<HTMLSelectElement>(null)
   // Chapter to scroll to after the next book-change render cycle
   const pendingScrollChapter = useRef<number | null>(null)
+  const searchTimer = useRef<ReturnType<typeof setTimeout>>()
 
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<Array<{ passage_ref: string; track_id: string; content: string }>>([])
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  const [exporting, setExporting] = useState(false)
 
   const book = BOOKS.find(b => b.id === bookId) ?? BOOKS[0]
 
@@ -383,6 +389,80 @@ export default function NotebookPage() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [activeChapter, book.chapters.length, bookId])
 
+  useEffect(() => {
+    clearTimeout(searchTimer.current)
+    if (!searchQuery.trim()) { setSearchResults([]); setSearchLoading(false); return }
+    if (!user) { setSearchLoading(false); return }
+    setSearchLoading(true)
+    searchTimer.current = setTimeout(async () => {
+      const { data } = await supabase.from('notes')
+        .select('passage_ref, track_id, content')
+        .eq('user_id', user.id)
+        .ilike('content', `%${searchQuery.trim()}%`)
+        .neq('content', '')
+        .order('passage_ref')
+        .limit(30)
+      setSearchResults(data ?? [])
+      setSearchLoading(false)
+    }, 300)
+  }, [searchQuery, user])
+
+  const goToResult = (passageRef: string) => {
+    const parts = passageRef.split(':')
+    const rBookId = parts[0]
+    const rChapter = parseInt(parts[1])
+    setSearchQuery('')
+    setSearchResults([])
+    if (rBookId === bookId) {
+      scrollToChapter(rChapter)
+    } else {
+      router.push(`/notebook/${rBookId}/${rChapter}`)
+    }
+  }
+
+  const exportNotes = async (scope: 'book' | 'all') => {
+    if (!user) return
+    setExporting(true)
+    const base = supabase.from('notes')
+      .select('passage_ref, track_id, content')
+      .eq('user_id', user.id)
+      .neq('content', '')
+      .order('passage_ref')
+    const { data } = await (scope === 'book' ? base.like('passage_ref', `${bookId}:%`) : base)
+    setExporting(false)
+    setExportOpen(false)
+    if (!data || data.length === 0) return
+    const lines: string[] = [
+      `Three Lines Notes — ${scope === 'book' ? book.name : 'All Books'}`,
+      `Exported ${new Date().toLocaleDateString()}`,
+      '',
+    ]
+    let lastRef = ''
+    data.forEach(note => {
+      const parts = note.passage_ref.split(':')
+      const rBook = BOOKS.find(b => b.id === parts[0])
+      const track = TRACKS.find(t => t.id === note.track_id)
+      if (note.passage_ref !== lastRef) {
+        if (lastRef) lines.push('')
+        lines.push(`--- ${rBook?.name ?? parts[0]} ${parts[1]}:${parts.slice(2).join(':')} ---`)
+        lastRef = note.passage_ref
+      }
+      lines.push(`[${track?.label ?? note.track_id}]`)
+      lines.push(note.content)
+    })
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = scope === 'book'
+      ? `${book.name.toLowerCase().replace(/\s+/g, '-')}-notes.txt`
+      : 'three-lines-notes.txt'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="flex h-[calc(100vh-48px)]">
 
@@ -458,9 +538,59 @@ export default function NotebookPage() {
           </button>
         </div>
 
-        {/* Chapter list — clicks scroll to in-page anchor */}
+        {/* Search */}
+        <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-800 flex-shrink-0">
+          <input
+            type="search"
+            placeholder="Search notes…"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="w-full text-xs border border-gray-200 dark:border-gray-700 rounded px-2 py-1.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 placeholder-gray-400 dark:placeholder-gray-600 outline-none focus:border-gray-400 dark:focus:border-gray-500"
+          />
+        </div>
+
+        {/* Chapter list / search results */}
         <div className="flex-1 overflow-y-auto">
-          {book.chapters.map(ch => {
+          {searchQuery.trim() ? (
+            searchLoading ? (
+              <div className="px-3 py-4 text-xs text-gray-400 animate-pulse">Searching…</div>
+            ) : !user ? (
+              <div className="px-3 py-4 text-xs text-gray-400 italic">
+                <a href="/login" className="underline">Sign in</a> to search your notes.
+              </div>
+            ) : searchResults.length === 0 ? (
+              <div className="px-3 py-4 text-xs text-gray-400 italic">No notes found.</div>
+            ) : searchResults.map((r, i) => {
+              const parts = r.passage_ref.split(':')
+              const rBook = BOOKS.find(b => b.id === parts[0])
+              const rTrack = TRACKS.find(t => t.id === r.track_id)
+              const q = searchQuery.trim().toLowerCase()
+              const ci = r.content.toLowerCase().indexOf(q)
+              const start = Math.max(0, ci - 20)
+              const snippet = r.content.slice(start, ci + q.length + 60)
+              return (
+                <button
+                  key={i}
+                  onClick={() => goToResult(r.passage_ref)}
+                  className="w-full text-left px-3 py-2.5 border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                >
+                  <div className="text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-0.5">
+                    {rBook?.name ?? parts[0]} {parts[1]}:{parts.slice(2).join(':')}
+                  </div>
+                  {rTrack && (
+                    <div className="flex items-center gap-1 mb-1">
+                      <span className="w-1 h-1 rounded-full flex-shrink-0" style={{ background: rTrack.dot }} />
+                      <span className="text-[9px] text-gray-400">{rTrack.label}</span>
+                    </div>
+                  )}
+                  <div className="text-[10px] text-gray-500 dark:text-gray-400 leading-snug line-clamp-2">
+                    {start > 0 ? '…' : ''}{snippet.trim()}{r.content.length > start + snippet.length ? '…' : ''}
+                  </div>
+                </button>
+              )
+            })
+          ) : (
+          book.chapters.map(ch => {
             const isActive   = activeChapter === ch.ch
             const hasNotes   = chaptersWithNotesLive.has(ch.ch)
             const firstChunk = ch.chunks[0]
@@ -496,8 +626,39 @@ export default function NotebookPage() {
                 </div>
               </button>
             )
-          })}
+          })
+          )}
         </div>
+
+        {/* Export */}
+        {user && (
+          <div className="border-t border-gray-100 dark:border-gray-800 flex-shrink-0 relative">
+            <button
+              onClick={() => setExportOpen(v => !v)}
+              className="w-full text-left px-3 py-2.5 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+            >
+              ↓ Export notes
+            </button>
+            {exportOpen && (
+              <div className="absolute bottom-full left-0 right-0 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-md">
+                <button
+                  onClick={() => exportNotes('book')}
+                  disabled={exporting}
+                  className="w-full text-left px-3 py-2.5 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors border-b border-gray-100 dark:border-gray-800 disabled:opacity-40"
+                >
+                  {book.name}
+                </button>
+                <button
+                  onClick={() => exportNotes('all')}
+                  disabled={exporting}
+                  className="w-full text-left px-3 py-2.5 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-40"
+                >
+                  All books
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </aside>
 
       {/* Main area — continuous scroll */}
