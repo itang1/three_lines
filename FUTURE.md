@@ -2,15 +2,9 @@
 
 ## P1 — Before sharing widely
 
-**feat(seo): the site is effectively invisible to search and unshareable on social**
-No favicon, no `robots.txt`, no `sitemap.xml`, no Open Graph or Twitter card tags, no `metadataBase`. Every page shares the single title "Three Lines" because the content pages are `'use client'` and can't export `metadata`. To fix:
-- Add `metadataBase` + default `openGraph` / `twitter` blocks in `app/layout.tsx` plus an OG image (a shared `/notebook/john/1` link currently previews as a blank card).
-- Give each page its own title/description. Split client pages: keep a server `page.tsx` that exports `metadata` and renders a client child for the interactive part.
-- Add `app/robots.ts`, `app/sitemap.ts`, and `app/icon.png`.
-- "Earl Palmer three lines method" is a low-competition term this site could own.
-
 Update the README
 Ask claude opus to do one more review
+
 ---
 
 ## Community

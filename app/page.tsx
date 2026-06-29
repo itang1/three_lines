@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { metadata } from './layout'
 
 export default function Home() {
   return (
@@ -7,9 +6,10 @@ export default function Home() {
 
       <div className="mb-16">
         <h1 className="text-3xl font-serif font-medium text-gray-900 dark:text-gray-100 mb-5 leading-snug">
-          {metadata.title as string}
+          Three Lines
         </h1>
-        <p className="text-base text-gray-500 dark:text-gray-400 leading-relaxed mb-8"> {metadata.description}
+        <p className="text-base text-gray-500 dark:text-gray-400 leading-relaxed mb-8">
+          A tool for studying Scripture through different analytical lenses, including: what events occur, how the characters respond, your own reflections, historical context, literary style, and more.
         </p>
         <div className="flex gap-3">
           <Link href="/notebook" className="btn-primary">Open your notebook →</Link>

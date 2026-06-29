@@ -1,4 +1,9 @@
-'use client'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'About',
+  description: "The story behind Three Lines — a Scripture study tool drawing on Earl Palmer's three-line method and Bart Ehrman's analytical lenses.",
+}
 
 export default function AboutPage() {
   return (

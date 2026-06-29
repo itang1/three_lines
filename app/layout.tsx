@@ -4,8 +4,20 @@ import Navbar from '@/components/Navbar'
 import { ThemeProvider } from '@/components/ThemeProvider'
 
 export const metadata: Metadata = {
-  title: 'Three Lines',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://threelines.app'),
+  title: {
+    default: 'Three Lines',
+    template: '%s — Three Lines',
+  },
   description: 'A tool for studying Scripture through different analytical lenses, including: what events occur, how the characters respond, your own reflections, historical context, literary style, and more.',
+  openGraph: {
+    siteName: 'Three Lines',
+    type: 'website',
+    locale: 'en_US',
+  },
+  twitter: {
+    card: 'summary_large_image',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

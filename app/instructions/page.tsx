@@ -1,5 +1,10 @@
-'use client'
+import type { Metadata } from 'next'
 import { TRACKS } from '@/lib/data'
+
+export const metadata: Metadata = {
+  title: 'How It Works',
+  description: 'Six analytical lines for studying Scripture: what happens, how people respond, your thoughts, historical context, literary style, and connections to other texts.',
+}
 
 export default function InstructionsPage() {
   return (
