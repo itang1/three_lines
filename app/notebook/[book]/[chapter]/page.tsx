@@ -51,6 +51,9 @@ export default function NotebookPage() {
 
   // Notes
   const [notes, setNotes]                   = useState<Record<string, string>>({})
+  const [noteVisibility, setNoteVisibility] = useState<Record<string, boolean>>({})
+  const [notesPublicDefault, setNotesPublicDefault] = useState<boolean>(false)
+  const [privateMode, setPrivateMode]       = useState<boolean>(false)
   const [communityNotes, setCommunityNotes] = useState<CommunityNote[]>([])
   const [replies, setReplies]               = useState<Record<string, Reply[]>>({})
   const [openThreads, setOpenThreads]       = useState<Set<string>>(new Set())
@@ -75,11 +78,12 @@ export default function NotebookPage() {
       setUser(data.user)
       if (data.user) {
         supabase.from('profiles')
-          .select('preferred_translation')
+          .select('preferred_translation, notes_public_default')
           .eq('id', data.user.id)
           .single()
           .then(({ data: profile }) => {
             if (profile?.preferred_translation) setTranslation(profile.preferred_translation)
+            if (profile?.notes_public_default != null) setNotesPublicDefault(profile.notes_public_default)
           })
       }
     })
@@ -220,19 +224,25 @@ export default function NotebookPage() {
   // Clear stale notes when book changes, then load all notes for the new book
   useEffect(() => {
     setNotes({})
+    setNoteVisibility({})
   }, [bookId])
 
   useEffect(() => {
     if (!user) return
     supabase.from('notes')
-      .select('passage_ref, track_id, content')
+      .select('passage_ref, track_id, content, is_public')
       .eq('user_id', user.id)
       .like('passage_ref', `${bookId}:%`)
       .then(({ data }) => {
         if (!data) return
         const map: Record<string, string> = {}
-        data.forEach(n => { map[`${n.passage_ref}|${n.track_id}`] = n.content })
+        const visMap: Record<string, boolean> = {}
+        data.forEach(n => {
+          map[`${n.passage_ref}|${n.track_id}`] = n.content
+          visMap[`${n.passage_ref}|${n.track_id}`] = n.is_public
+        })
         setNotes(prev => ({ ...prev, ...map }))
+        setNoteVisibility(prev => ({ ...prev, ...visMap }))
       })
   }, [user, bookId])
 
@@ -252,6 +262,9 @@ export default function NotebookPage() {
     const key = `${passageRef}|${trackId}`
     setNotes(prev => ({ ...prev, [key]: value }))
     if (!user) return
+    const effectivePublic = !privateMode && (noteVisibility[key] ?? notesPublicDefault)
+    // Track visibility for new notes so private-mode state doesn't bleed into future saves
+    setNoteVisibility(prev => prev[key] !== undefined ? prev : { ...prev, [key]: effectivePublic })
     clearTimeout(saveTimers.current[key])
     saveTimers.current[key] = setTimeout(async () => {
       await supabase.from('notes').upsert({
@@ -259,10 +272,31 @@ export default function NotebookPage() {
         passage_ref: passageRef,
         track_id: trackId,
         content: value,
-        is_public: true,
+        is_public: effectivePublic,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id,passage_ref,track_id' })
     }, 800)
+  }
+
+  const toggleNoteVisibility = async (passageRef: string, trackId: string) => {
+    if (!user || privateMode) return
+    const key = `${passageRef}|${trackId}`
+    const next = !(noteVisibility[key] ?? notesPublicDefault)
+    setNoteVisibility(prev => ({ ...prev, [key]: next }))
+    await supabase.from('notes').upsert({
+      user_id: user.id,
+      passage_ref: passageRef,
+      track_id: trackId,
+      content: notes[key] ?? '',
+      is_public: next,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id,passage_ref,track_id' })
+  }
+
+  const saveNotesPublicDefault = async (val: boolean) => {
+    setNotesPublicDefault(val)
+    if (!user) return
+    await supabase.from('profiles').update({ notes_public_default: val }).eq('id', user.id)
   }
 
   const toggleTrack = (id: string) => {
@@ -433,6 +467,23 @@ export default function NotebookPage() {
           </button>
         </div>
 
+        {/* Global note visibility default */}
+        {user && (
+          <div className="px-3 py-2 border-b border-gray-100 flex-shrink-0 flex items-center justify-between">
+            <span className="text-xs text-gray-400">Public by default</span>
+            <button
+              onClick={() => saveNotesPublicDefault(!notesPublicDefault)}
+              className={`relative w-7 h-4 rounded-full transition-colors flex-shrink-0 ${
+                notesPublicDefault ? 'bg-gray-600' : 'bg-gray-200'
+              }`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full shadow-sm transition-transform ${
+                notesPublicDefault ? 'translate-x-3' : ''
+              }`} />
+            </button>
+          </div>
+        )}
+
         {/* Chapter list — clicks scroll to in-page anchor */}
         <div className="flex-1 overflow-y-auto">
           {book.chapters.map(ch => {
@@ -522,6 +573,19 @@ export default function NotebookPage() {
                 </button>
               ))}
             </div>
+            {user && (
+              <button
+                onClick={() => setPrivateMode(v => !v)}
+                title={privateMode ? 'Exit private session — notes will follow your default visibility' : 'Study privately — all notes hidden from community until you turn this off'}
+                className={`px-3 py-1.5 text-sm border rounded-md transition-colors ${
+                  privateMode
+                    ? 'bg-gray-900 border-gray-900 text-white'
+                    : 'border-gray-200 text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                {privateMode ? '🔒 Private' : '🔓 Private'}
+              </button>
+            )}
             <div className="flex gap-1.5 flex-wrap">
               {TRACKS.map(t => (
                 <button
@@ -594,19 +658,42 @@ export default function NotebookPage() {
                       {/* Study mode */}
                       {mode === 'study' && (
                         <div className="border border-t-0 border-gray-100 rounded-b-lg overflow-hidden">
-                          {TRACKS.filter(t => activeTracks.has(t.id)).map((t, i) => (
+                          {TRACKS.filter(t => activeTracks.has(t.id)).map((t, i) => {
+                            const noteKey = `${pKey}|${t.id}`
+                            const isNotePublic = !privateMode && (noteVisibility[noteKey] ?? notesPublicDefault)
+                            return (
                             <div
                               key={t.id}
                               className={`flex items-stretch ${i > 0 ? 'border-t border-gray-100' : ''}`}
                             >
-                              <div className="w-36 flex-shrink-0 flex items-center gap-2 px-3 py-2 bg-gray-50 border-r border-gray-100 self-stretch">
-                                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: t.dot }} />
-                                <span className="text-[10px] font-medium text-gray-400 leading-tight">{t.label}</span>
+                              <div className="w-36 flex-shrink-0 flex items-center px-3 py-2 bg-gray-50 border-r border-gray-100 self-stretch justify-between gap-1">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: t.dot }} />
+                                  <span className="text-[10px] font-medium text-gray-400 leading-tight truncate">{t.label}</span>
+                                </div>
+                                {user && (
+                                  <button
+                                    onClick={() => toggleNoteVisibility(pKey, t.id)}
+                                    disabled={privateMode}
+                                    title={
+                                      privateMode
+                                        ? 'Private session active'
+                                        : isNotePublic
+                                          ? 'Public — click to make private'
+                                          : 'Private — click to make public'
+                                    }
+                                    className={`text-[10px] flex-shrink-0 leading-none ${
+                                      privateMode ? 'opacity-30 cursor-default' : 'opacity-50 hover:opacity-100'
+                                    }`}
+                                  >
+                                    {isNotePublic ? '🌐' : '🔒'}
+                                  </button>
+                                )}
                               </div>
                               <textarea
                                 className="flex-1 text-sm p-2.5 outline-none resize-none bg-white text-gray-800 placeholder-gray-300 min-h-[38px] overflow-hidden"
                                 placeholder={t.placeholder}
-                                value={notes[`${pKey}|${t.id}`] ?? ''}
+                                value={notes[noteKey] ?? ''}
                                 rows={1}
                                 onChange={e => {
                                   autoResize(e.target)
@@ -614,7 +701,8 @@ export default function NotebookPage() {
                                 }}
                               />
                             </div>
-                          ))}
+                            )
+                          })}
                           {!user && (
                             <div className="px-4 py-2 bg-amber-50 border-t border-amber-100 text-xs text-amber-700">
                               <a href="/login" className="underline">Sign in</a> to save your notes.

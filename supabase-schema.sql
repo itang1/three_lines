@@ -84,6 +84,9 @@ create policy "Service role inserts passages" on passages for insert with check 
 -- Migration: add preferred_translation to existing profiles tables
 alter table profiles add column if not exists preferred_translation text not null default 'ESV';
 
+-- Migration: add notes_public_default to profiles (false = private by default, which is the safe consent default)
+alter table profiles add column if not exists notes_public_default boolean not null default false;
+
 -- Migration: add translation column to passages and fix unique constraint
 alter table passages add column if not exists translation text not null default 'ESV';
 alter table passages drop constraint if exists passages_book_id_ref_key;

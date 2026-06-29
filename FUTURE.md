@@ -17,15 +17,6 @@ Concretely:
 - "Earl Palmer three lines method" is a low-competition term this site could own — none of
   that ranks without the above.
 
-**fix(privacy): notes are forced public with no way to opt out**
-`handleNoteChange` always writes `is_public: true`, and the Instructions page tells users
-their notes are "visible to others by default." There is no per-note or per-account control,
-yet the schema default is `is_public false`. People write personal, sometimes raw reflections
-on Scripture — silently publishing them will scare off exactly the thoughtful users this is
-for. Ship at least an account-level "keep my notes private" default before promoting the site.
-(The per-note and global-default toggles already exist under Privacy and Sharing — this is the
-consent gap, not just a feature.)
-
 **feat(security): the contact form is an open spam relay**
 `app/api/contact/route.ts` accepts any JSON and emails it with no validation, no honeypot,
 no rate limiting, and no email-format check. Once the URL is public this will get abused. Add
@@ -137,22 +128,6 @@ passage_ref ORDER BY COUNT DESC.
 **feat(community): moderation tools**
 A flag/report button on community notes. An admin view for the site owner to review
 flagged notes and remove them. Currently there is no moderation layer.
-
----
-
-## Commits — Privacy and Sharing
-
-**feat(privacy): per-note public/private toggle**
-A small lock/globe icon next to each note line so users can control what appears in
-Community mode. The is_public column already exists in the schema. This is UI only.
-
-**feat(privacy): global account default for note visibility**
-A profile page setting that lets users choose whether new notes default to public or
-private. Currently all notes are public by default.
-
-**feat(privacy): private study mode**
-An explicit "studying privately" mode that sets all notes to private for that session,
-without changing the account default.
 
 ---
 
