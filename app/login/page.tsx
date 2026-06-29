@@ -36,8 +36,14 @@ export default function LoginPage() {
       body: JSON.stringify({ origin: window.location.origin }),
     })
     const json = await res.json()
-    if (!res.ok || json.error) { setDevError(json.error ?? 'Failed'); setDevLoading(false); return }
-    window.location.href = json.url
+    if (!res.ok || json.error) { setDevError(json.error ?? JSON.stringify(json)); setDevLoading(false); return }
+    const { error: verifyError } = await supabase.auth.verifyOtp({
+      email: json.email,
+      token: json.otp,
+      type: 'email',
+    })
+    if (verifyError) { setDevError(verifyError.message); setDevLoading(false); return }
+    window.location.href = '/notebook/john/1'
   }
 
   return (

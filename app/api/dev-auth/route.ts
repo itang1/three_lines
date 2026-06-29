@@ -8,18 +8,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Not available' }, { status: 403 })
   }
 
-  const { origin } = await req.json().catch(() => ({ origin: 'http://localhost:3001' }))
-
-  const admin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
+  const { origin } = await req.json().catch(() => ({ origin: 'http://localhost:3000' }))
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
-  const res = await fetch(`${supabaseUrl}/auth/v1/admin/generate_link`, {
+  const admin = createClient(supabaseUrl, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+
+  // Generate a one-time magic link (creates user if they don't exist)
+  const linkRes = await fetch(`${supabaseUrl}/auth/v1/admin/generate_link`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -33,7 +32,21 @@ export async function POST(req: Request) {
     }),
   })
 
-  const body = await res.json()
-  if (!res.ok) return NextResponse.json({ restError: body, httpStatus: res.status }, { status: 500 })
-  return NextResponse.json({ url: body.action_link })
+  const linkBody = await linkRes.json()
+  if (!linkRes.ok) {
+    return NextResponse.json({ error: `Supabase: ${linkBody.msg ?? JSON.stringify(linkBody)}` }, { status: 500 })
+  }
+
+  // Ensure the profile row exists (trigger may have silently failed)
+  const userId = linkBody.user?.id
+  if (userId) {
+    await admin.from('profiles').upsert({
+      id: userId,
+      display_name: 'Dev User',
+      preferred_translation: 'ESV',
+      notes_public_default: false,
+    }, { onConflict: 'id' })
+  }
+
+  return NextResponse.json({ email: DEV_EMAIL, otp: linkBody.email_otp })
 }
