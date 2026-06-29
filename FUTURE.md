@@ -4,13 +4,6 @@ A running list of ideas organized as discrete commits. Add to this as new ideas 
 
 ### P1 — Required before sharing widely
 
-**fix(mobile): the notebook is unusable on a phone**
-The notebook is a fixed `w-52` sidebar next to `h-[calc(100vh-48px)]` main column, and the
-navbar uses a 35px logo with four inline links. On a phone the sidebar eats half the screen
-and the nav overflows. Since most people open a shared link on mobile, this caps adoption hard.
-Collapse the sidebar into a top sheet / drawer below `md:`, and let the navbar wrap or move
-links into a menu. (Already noted under Design and UX — promoting it to P1 because of the goal.)
-
 **feat(seo): the site is effectively invisible to search and unshareable on social**
 There is no `public/` directory, no favicon, no `robots.txt`, no `sitemap.xml`, no Open Graph
 or Twitter card tags, and no `metadataBase`. Every page also shares the single title
@@ -108,20 +101,6 @@ to pre-populate the cache for all books and non-ESV translations.
 
 ---
 
----
-
-## Commits — Navigation
-
-**feat(nav): pericope names in sidebar**
-Once pericopes are named, show the pericope name as the subtitle in the sidebar chapter
-list instead of the first few words of the passage text.
-
-**feat(nav): keyboard shortcuts**
-j / k (or ← / →) to move between chapters. / to focus the book selector.
-t to cycle translations. A small key hint shown on hover over the nav buttons.
-
----
-
 ## Commits — Notebook Features
 
 **feat(notebook): search your own notes**
@@ -199,10 +178,6 @@ compliance if the site ever has users in the EU.
 **feat(ux): dark mode**
 A meditative reading tool lends itself to dark mode. Tailwind supports this with the
 dark: variant and a class toggle on the root element.
-
-**feat(ux): mobile layout**
-The current sidebar + main layout does not work well on small screens. A mobile version
-would collapse the sidebar into a top dropdown or bottom sheet.
 
 ---
 

@@ -61,8 +61,11 @@ export default function NotebookPage() {
   const requestedChunks = useRef<Set<string>>(new Set())
   const chapterRefs     = useRef<Map<number, HTMLElement>>(new Map())
   const scrollContainer = useRef<HTMLDivElement>(null)
+  const bookSelectRef   = useRef<HTMLSelectElement>(null)
   // Chapter to scroll to after the next book-change render cycle
   const pendingScrollChapter = useRef<number | null>(null)
+
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const book = BOOKS.find(b => b.id === bookId) ?? BOOKS[0]
 
@@ -321,11 +324,63 @@ export default function NotebookPage() {
     router.push(`/notebook/${newBookId}/1`)
   }
 
+  // Keyboard shortcuts: j/→ next chapter, k/← prev chapter, / focus book selector, t cycle translation
+  useEffect(() => {
+    const TRANSLATIONS = ['ESV', 'KJV', 'NIV', 'CEV']
+    const onKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      switch (e.key) {
+        case 'ArrowLeft':
+        case 'k': {
+          const prev = activeChapter - 1
+          if (prev < 1) break
+          setActiveChapter(prev)
+          window.history.replaceState(null, '', `/notebook/${bookId}/${prev}`)
+          chapterRefs.current.get(prev)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          break
+        }
+        case 'ArrowRight':
+        case 'j': {
+          const next = activeChapter + 1
+          if (next > book.chapters.length) break
+          setActiveChapter(next)
+          window.history.replaceState(null, '', `/notebook/${bookId}/${next}`)
+          chapterRefs.current.get(next)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          break
+        }
+        case '/':
+          e.preventDefault()
+          bookSelectRef.current?.focus()
+          break
+        case 't':
+          setTranslation(t => TRANSLATIONS[(TRANSLATIONS.indexOf(t) + 1) % TRANSLATIONS.length])
+          break
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [activeChapter, book.chapters.length, bookId])
+
   return (
     <div className="flex h-[calc(100vh-48px)]">
 
-      {/* Sidebar */}
-      <aside className="w-52 border-r border-gray-100 flex flex-col flex-shrink-0">
+      {/* Mobile sidebar backdrop */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/30 z-30 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar — fixed overlay on mobile, static on desktop */}
+      <aside className={`
+        fixed top-12 bottom-0 left-0 z-40 bg-white
+        md:static md:top-auto md:bottom-auto md:z-auto
+        w-52 border-r border-gray-100 flex flex-col flex-shrink-0
+        transition-transform duration-200 md:transition-none md:translate-x-0
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
 
         {/* Version selector */}
         <div className="p-3 border-b border-gray-100 flex-shrink-0">
@@ -352,6 +407,7 @@ export default function NotebookPage() {
         {/* Book picker */}
         <div className="p-3 border-b border-gray-100 flex-shrink-0">
           <select
+            ref={bookSelectRef}
             className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 bg-white text-gray-700 outline-none"
             value={bookId}
             onChange={e => handleBookChange(e.target.value)}
@@ -364,7 +420,7 @@ export default function NotebookPage() {
 
         {/* Verse numbers toggle */}
         <div className="px-3 py-2 border-b border-gray-100 flex-shrink-0 flex items-center justify-between">
-          <span className="text-xs text-gray-400">Verse numbers</span>
+          <span className="text-xs text-gray-400">Show Verse Numbers</span>
           <button
             onClick={() => setShowVerseNumbers(v => !v)}
             className={`relative w-7 h-4 rounded-full transition-colors flex-shrink-0 ${
@@ -387,7 +443,7 @@ export default function NotebookPage() {
               ? `${firstChunk.esvRef}|${translation}|${showVerseNumbers ? '1' : '0'}`
               : ''
             const subtitle   = firstChunk?.pericope
-              ?? (passageTexts[cacheKey] ?? '')
+              || (passageTexts[cacheKey] ?? '')
                   .replace(/\[\d+\]/g, '').replace(/\s+/g, ' ').trim().slice(0, 50)
 
             return (
@@ -424,9 +480,28 @@ export default function NotebookPage() {
 
         {/* Sticky chapter heading — keeps the reader oriented in long chapters */}
         <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-gray-100">
-          <div className="max-w-2xl mx-auto px-6 py-2.5 flex items-baseline gap-2.5">
+          <div className="max-w-2xl mx-auto px-3 md:px-6 py-2.5 flex items-center gap-2">
+            <button
+              className="md:hidden p-1 text-gray-400 hover:text-gray-700"
+              onClick={() => setSidebarOpen(v => !v)}
+              aria-label="Toggle sidebar"
+            >☰</button>
             <h2 className="text-base font-serif font-medium text-gray-900">{book.name}</h2>
-            <span className="text-xs text-gray-400 tracking-wider uppercase">Chapter {activeChapter}</span>
+            <span className="text-xs text-gray-400 tracking-wider uppercase flex-1">Chapter {activeChapter}</span>
+            <div className="flex">
+              <button
+                onClick={() => activeChapter > 1 && scrollToChapter(activeChapter - 1)}
+                disabled={activeChapter === 1}
+                title="Previous chapter (k / ←)"
+                className="px-2 py-1 text-base text-gray-400 hover:text-gray-700 disabled:opacity-30"
+              >‹</button>
+              <button
+                onClick={() => activeChapter < book.chapters.length && scrollToChapter(activeChapter + 1)}
+                disabled={activeChapter === book.chapters.length}
+                title="Next chapter (j / →)"
+                className="px-2 py-1 text-base text-gray-400 hover:text-gray-700 disabled:opacity-30"
+              >›</button>
+            </div>
           </div>
         </div>
 
