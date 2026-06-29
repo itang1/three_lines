@@ -1,32 +1,62 @@
 # Future Improvements
 
-A running list of ideas organized as discrete commits. Add to this as new ideas come up.
-
-### P1 — Required before sharing widely
+## P1 — Before sharing widely
 
 **feat(seo): the site is effectively invisible to search and unshareable on social**
-There is no `public/` directory, no favicon, no `robots.txt`, no `sitemap.xml`, no Open Graph
-or Twitter card tags, and no `metadataBase`. Every page also shares the single title
-"Three Lines" because the content pages are `'use client'` and can't export `metadata`.
-Concretely:
-- Add `metadataBase` + default `openGraph` / `twitter` blocks in `app/layout.tsx`, plus an
-  OG image (a shared `/notebook/john/1` link currently previews as a blank card).
-- Give each page its own title/description. Split the client pages: keep a server
-  `page.tsx` that exports `metadata` and renders a client child for the interactive part.
-- Add `app/robots.ts`, `app/sitemap.ts`, and `app/icon.png` (Next.js generates the routes).
-- "Earl Palmer three lines method" is a low-competition term this site could own — none of
-  that ranks without the above.
+No favicon, no `robots.txt`, no `sitemap.xml`, no Open Graph or Twitter card tags, no `metadataBase`. Every page shares the single title "Three Lines" because the content pages are `'use client'` and can't export `metadata`. To fix:
+- Add `metadataBase` + default `openGraph` / `twitter` blocks in `app/layout.tsx` plus an OG image (a shared `/notebook/john/1` link currently previews as a blank card).
+- Give each page its own title/description. Split client pages: keep a server `page.tsx` that exports `metadata` and renders a client child for the interactive part.
+- Add `app/robots.ts`, `app/sitemap.ts`, and `app/icon.png`.
+- "Earl Palmer three lines method" is a low-competition term this site could own.
 
 **feat(security): the contact form is an open spam relay**
-`app/api/contact/route.ts` accepts any JSON and emails it with no validation, no honeypot,
-no rate limiting, and no email-format check. Once the URL is public this will get abused. Add
-a honeypot field, basic length/format validation, and rate limiting (ties into the existing
-"rate limiting on community posts" item — do them together). Also move off
-`from: onboarding@resend.dev` to a verified domain or messages will land in spam.
+`app/api/contact/route.ts` accepts any JSON with no validation, no honeypot, no rate limiting, and no email-format check. Add a honeypot field, basic length/format validation, and rate limiting. Also move off `from: onboarding@resend.dev` to a verified domain or messages will land in spam.
 
 ---
 
-## User Feedback — Things to Test
+## Notebook
+
+**feat(notebook): search your own notes**
+Full-text search across everything the user has written, across all books and tracks. Supabase supports full-text search natively with `to_tsvector`. A search bar above the passage list that filters or highlights matching chunks.
+
+**feat(notebook): export notes**
+Download all notes for a book (or all books) as a formatted PDF or plain text file. Useful for printing, archiving, or bringing notes into a study group.
+
+**feat(notebook): theme trace track**
+A user-named optional track where the user specifies a thread they are following (e.g. "covenant", "exile", "light") and that label appears as a custom line throughout their reading. Stored as a user preference in the profiles table.
+
+**feat(notebook): reading plan layer**
+An optional structure overlaid on the notebook, e.g. Palmer's six-week John study or a chapter-a-day plan. Shows which passages are assigned for today and tracks completion.
+
+---
+
+## Community
+
+**feat(community): filter community notes by book/chapter**
+A way to browse all community notes across the whole Bible, not just the chapter you are currently reading.
+
+**feat(community): most discussed passages**
+A page or sidebar widget showing which passages have the most community notes or replies. `SELECT passage_ref, COUNT(*) FROM notes WHERE is_public = true GROUP BY passage_ref ORDER BY COUNT DESC`.
+
+**feat(community): moderation tools**
+A flag/report button on community notes. An admin view to review flagged notes and remove them.
+
+---
+
+## iOS
+
+**feat(mobile): Progressive Web App (PWA) — recommended first step**
+Add a manifest file and service worker to the existing Next.js app. Users can "Add to Home Screen" on iPhone — full screen, icon on the home screen, no browser chrome. Does not appear in the App Store. Shares 100% of the existing codebase. Roughly one day of work.
+
+**feat(mobile): Capacitor wrapper**
+Wraps the existing Next.js app in a native shell with minimal code changes. Gets into the App Store faster than React Native. More "wrapped web app" than true native, but appropriate for a reading and note-taking tool.
+
+**feat(mobile): React Native with Expo**
+Rewrites the UI layer in React Native while reusing all Supabase backend logic. True native iOS app. Realistically a few months of work to reach feature parity.
+
+---
+
+## User Feedback Questions
 
 Questions to ask when soliciting feedback from early users.
 
@@ -64,97 +94,3 @@ Questions to ask when soliciting feedback from early users.
 - Was there anything you found that you didn't expect?
 - Would you use this for a personal Bible study? Why or why not?
 - Would you use this in a group setting?
-
----
-
-## In Progress
-
-**Passage text via ESV API**
-Fetching passage text dynamically from ESV API and caching in Supabase passages table.
-Key and caching logic in place. Run `npm run warm` (or `npm run warm -- --base-url=<prod-url>`)
-to pre-populate the cache for all books and non-ESV translations.
-
----
-
-## Commits — Notebook Features
-
-**feat(notebook): search your own notes**
-Full-text search across everything the user has written, across all books and tracks.
-Supabase supports full-text search natively with to_tsvector. A search bar above the
-passage list that filters or highlights matching chunks.
-
-**feat(notebook): export notes**
-Download all notes for a book (or all books) as a formatted PDF or plain text file.
-Useful for printing, archiving, or bringing notes into a study group.
-
-**feat(notebook): theme trace track**
-A user-named optional track where the user specifies a thread they are following
-(e.g. "covenant", "exile", "light") and that label appears as a custom line throughout
-their reading. Stored as a user preference in the profiles table.
-
-**feat(notebook): reading plan layer**
-An optional structure overlaid on the notebook, e.g. Palmer's six-week John study,
-or a chapter-a-day plan. Shows which passages are assigned for today and tracks completion.
-
----
-
-## Commits — Community
-
-**feat(community): filter community notes by book/chapter**
-A way to browse all community notes across the whole Bible, not just the chapter you
-are currently reading. Useful for discovering what passages others are spending time on.
-
-**feat(community): most discussed passages**
-A page or sidebar widget showing which passages have the most community notes or replies.
-Simple SQL query: SELECT passage_ref, COUNT(*) FROM notes WHERE is_public = true GROUP BY
-passage_ref ORDER BY COUNT DESC.
-
-**feat(community): moderation tools**
-A flag/report button on community notes. An admin view for the site owner to review
-flagged notes and remove them. Currently there is no moderation layer.
-
----
-
-## Commits — Account and Profile
-
-**feat(account): display name prompt on signup**
-Currently display name defaults to the name from Google auth or "Anonymous" for
-magic link signups. A prompt on first login to set a display name improves the
-community experience.
-
-**feat(account): profile page**
-A page where users can update their display name, set privacy defaults, and see
-stats on their reading (chapters covered, notes written).
-
-**feat(account): account deletion**
-A way for users to delete their account and all associated notes. Required for GDPR
-compliance if the site ever has users in the EU.
-
----
-
-## Commits — Design and UX
-
----
-
-## Commits — iOS App
-
-Three realistic paths from easiest to hardest.
-
-**feat(mobile): Progressive Web App (PWA) [recommended first step]**
-Add a manifest file and service worker to the existing Next.js app. Users can then
-"Add to Home Screen" on iPhone and it behaves like an app — full screen, icon on the
-home screen, no browser chrome. Does not appear in the App Store. Shares 100% of the
-existing codebase. Roughly one day of work. Best starting point before investing in
-a native app.
-
-**feat(mobile): Capacitor wrapper**
-Wraps the existing Next.js web app in a native shell with minimal code changes. Gets
-the app into the App Store faster than React Native. The result is more "wrapped web
-app" than true native but is appropriate for a reading and note-taking tool. Good
-middle path if the PWA feels too limited.
-
-**feat(mobile): React Native with Expo**
-Rewrites the UI layer in React Native (different components, no Tailwind) while reusing
-all Supabase backend logic and data structure. True native iOS app. Takes longer to
-build but produces the best mobile experience. Expo is the easiest starting point.
-Realistically a few months of work to reach feature parity with the web app.

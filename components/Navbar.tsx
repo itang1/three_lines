@@ -87,7 +87,7 @@ export default function Navbar() {
       ?? '?'
 
   const Avatar = (
-    <div className="w-7 h-7 rounded-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center text-xs font-semibold text-gray-600 dark:text-gray-400">
+    <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center text-xs font-semibold text-gray-600 dark:text-gray-400">
       {initials}
     </div>
   )
@@ -117,8 +117,11 @@ export default function Navbar() {
 
             {user ? (
               <div className="flex items-center gap-3">
-                <Link href="/profile" aria-label="Profile">
+                <Link href="/profile" aria-label="Profile" className="flex items-center gap-2 hover:opacity-75 transition-opacity">
                   {Avatar}
+                  {displayName && displayName !== 'Anonymous' && (
+                    <span className="text-sm text-gray-600 dark:text-gray-400">{displayName.split(' ')[0]}</span>
+                  )}
                 </Link>
                 <button onClick={signOut} className="text-xs text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">Sign out</button>
               </div>

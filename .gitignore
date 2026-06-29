@@ -20,6 +20,9 @@ Thumbs.db
 *.swp
 *.swo
 
+# Claude
+.claude/
+
 # Logs
 npm-debug.log*
 yarn-debug.log*

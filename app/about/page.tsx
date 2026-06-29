@@ -5,7 +5,7 @@ export default function AboutPage() {
     <div className="max-w-xl mx-auto px-6 py-16">
       <h1 className="text-3xl font-serif font-medium text-gray-900 dark:text-gray-100 mb-8">About</h1>
 
-      <div className="space-y-5 text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+      <div className="space-y-5 text-base text-gray-600 dark:text-gray-400 leading-relaxed">
 
         <p>
           I hold the conviction that any sequence of events can be retold by an

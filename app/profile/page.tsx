@@ -130,9 +130,9 @@ export default function ProfilePage() {
         </div>
       </section>
 
-      {/* Privacy default */}
+      {/* Sharing default */}
       <section className="mb-10">
-        <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Privacy default</h2>
+        <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Community sharing</h2>
         <label className="flex items-center gap-3 cursor-pointer">
           <input
             type="checkbox"
@@ -141,11 +141,11 @@ export default function ProfilePage() {
             className="w-4 h-4 accent-gray-800 dark:accent-gray-300"
           />
           <span className="text-sm text-gray-600 dark:text-gray-400">
-            Make new notes public by default
+            Share new notes with the community by default
           </span>
         </label>
         <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
-          You can still toggle visibility on individual notes at any time.
+          You can always change this per passage using the Share button in your notebook.
         </p>
       </section>
 
