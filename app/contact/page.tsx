@@ -5,7 +5,7 @@ export default function ContactPage() {
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
-  const [form, setForm] = useState({ name: '', email: '', message: '' })
+  const [form, setForm] = useState({ name: '', email: '', message: '', website: '' })
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -38,6 +38,15 @@ export default function ContactPage() {
         </div>
       ) : (
         <form onSubmit={submit} className="space-y-4">
+          {/* honeypot — hidden from humans, filled by bots */}
+          <div style={{ position: 'absolute', left: '-9999px', top: 'auto', width: '1px', height: '1px', overflow: 'hidden' }} aria-hidden="true">
+            <label htmlFor="website">Website</label>
+            <input
+              id="website" type="text" tabIndex={-1} autoComplete="off"
+              value={form.website}
+              onChange={e => setForm(p => ({ ...p, website: e.target.value }))}
+            />
+          </div>
           <div>
             <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Name</label>
             <input
