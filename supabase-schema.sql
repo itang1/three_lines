@@ -91,6 +91,24 @@ alter table reports add constraint reports_note_id_reporter_id_key
 create index if not exists reports_status_created_at_idx on reports (status, created_at desc);
 create index if not exists reports_note_id_idx on reports (note_id);
 
+-- notes: loading a user's book via eq(user_id) + like(passage_ref, 'book:%').
+-- text_pattern_ops lets the prefix LIKE use the index regardless of collation.
+create index if not exists notes_user_passage_idx
+  on notes (user_id, passage_ref text_pattern_ops);
+
+-- notes: community feeds (where is_public, content <> '' order by updated_at desc).
+create index if not exists notes_public_updated_idx
+  on notes (is_public, updated_at desc);
+
+-- notes: note search via ilike(content, '%q%'). A btree can't serve a leading
+-- wildcard; a trigram GIN index can.
+create extension if not exists pg_trgm;
+create index if not exists notes_content_trgm_idx
+  on notes using gin (content gin_trgm_ops);
+
+-- comments: reply loads via eq(parent_id).
+create index if not exists comments_parent_id_idx on comments (parent_id);
+
 -- Functions
 
 -- Atomic fixed-window rate limiter. Returns true if the call is allowed.
