@@ -138,8 +138,7 @@ export default function Navbar() {
 
   const signOut = async () => {
     await supabase.auth.signOut()
-    // useUser's auth subscription clears `user`; the profile effect resets the rest
-    setDisplayName(null)
+    window.location.href = '/'
   }
 
   const saveDisplayName = async () => {
@@ -286,11 +285,8 @@ export default function Navbar() {
             {user ? (
               <div className="flex items-center gap-3">
                 <BellButton />
-                <Link href="/profile" aria-label="Profile" className="flex items-center gap-2 hover:opacity-75 transition-opacity">
+                <Link href="/profile" aria-label="Profile" className="hover:opacity-75 transition-opacity">
                   {Avatar}
-                  {displayName && displayName !== 'Anonymous' && (
-                    <span className="text-sm text-gray-600 dark:text-gray-400">{displayName.split(' ')[0]}</span>
-                  )}
                 </Link>
                 <button onClick={signOut} className="text-xs text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">Sign out</button>
               </div>

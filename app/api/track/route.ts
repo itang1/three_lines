@@ -22,8 +22,8 @@ export async function POST(req: Request) {
 
   const ts = new Date().toISOString()
 
-  // Visits tab: Timestamp | Page | Country | City | Region | Referrer | User Agent
-  await appendRow('Visits', [ts, page, country, city, region, referrer, ua])
+  // Visits tab: Timestamp | IP | Page | Country | City | Region | Referrer | User Agent
+  await appendRow('Visits', [ts, ip, page, country, city, region, referrer, ua])
 
   return NextResponse.json({ ok: true })
 }
