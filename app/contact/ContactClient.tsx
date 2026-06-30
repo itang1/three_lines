@@ -55,8 +55,7 @@ export default function ContactClient() {
     <div className="max-w-md mx-auto px-6 py-16">
       <h1 className="text-3xl font-serif font-medium text-gray-900 dark:text-gray-100 mb-2">Contact</h1>
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-        Questions, feedback, or just want to get in touch. Everything here comes
-        straight to me, and I read every note personally.
+        Questions, comments, feedback? I read every note personally.
       </p>
 
       {/* Mode toggle */}
@@ -82,7 +81,7 @@ export default function ContactClient() {
         <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800/30 rounded-md text-sm text-green-700 dark:text-green-400">
           {mode === 'feedback'
             ? 'Thank you for taking the time. I read every piece of feedback that comes in.'
-            : "Thanks. I'll be in touch soon."}
+            : 'Thanks for reaching out. I read every message that comes in.'}
         </div>
       ) : (
         <form onSubmit={submit} className="space-y-4">
@@ -114,22 +113,21 @@ export default function ContactClient() {
           ) : (
             <>
               <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-                As you used Three Lines, a few things I am curious about: whether the
+                As you used Three Lines, a few things to consider: whether the
                 passage chunks felt like natural stopping points, whether the line
-                labels made sense without explanation, whether you could find your way
-                around, and whether community notes helped or distracted. Answer
-                whatever is on your mind, no need to cover all of it.
+                labels made sense intuitively, whether you could find your way
+                around, and whether community notes could be structured better.
               </p>
               <div>
                 <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">What worked well?</label>
                 <textarea rows={4} className={`${inputClass} resize-none`} value={form.worked} onChange={set('worked')} />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">What felt off or missing?</label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">What could be improved or is missing?</label>
                 <textarea rows={4} className={`${inputClass} resize-none`} value={form.missing} onChange={set('missing')} />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Email <span className="text-gray-400 dark:text-gray-500 font-normal">(optional, only if you would like a reply)</span></label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Email <span className="text-gray-400 dark:text-gray-500 font-normal">(optional, in case I want to follow up)</span></label>
                 <input type="email" className={inputClass} value={form.email} onChange={set('email')} />
               </div>
             </>
