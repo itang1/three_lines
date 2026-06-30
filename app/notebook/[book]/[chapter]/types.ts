@@ -38,6 +38,10 @@ export type Track = { id: string; label: string; dot: string; placeholder: strin
 
 export const THEME_DOT = '#0891B2'
 
+// Max characters for a single note line or community reply. Enforced in the UI
+// (textarea maxLength), in the comment API route, and by a DB check constraint.
+export const NOTE_MAX_LENGTH = 5000
+
 export const TRANSLATIONS = ['ESV', 'KJV', 'NIV', 'CEV']
 
 // notes are keyed "<book>:<chapter>:<chunkRef>" and lines "<passageRef>|<trackId>"

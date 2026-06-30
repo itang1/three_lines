@@ -19,6 +19,11 @@ export async function POST(req: Request) {
   if (!passage_ref || !track_id || !content?.trim()) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
+  // Cap length so a single comment cannot store/broadcast an unbounded payload.
+  // Mirrors NOTE_MAX_LENGTH (5000) and the comments DB check constraint.
+  if (typeof content !== 'string' || content.trim().length > 5000) {
+    return NextResponse.json({ error: 'Comment too long' }, { status: 400 })
+  }
 
   // Rate limit: max RATE_LIMIT_PER_HOUR comments per user per hour
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()

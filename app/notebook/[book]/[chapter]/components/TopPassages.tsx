@@ -4,7 +4,7 @@ import type { TopPassage } from '../types'
 type Props = {
   topPassages: TopPassage[]
   topPassagesLoading: boolean
-  goToPassage: (bookId: string, chapter: number) => void
+  goToPassage: (passageRef: string) => void
 }
 
 // Most-discussed passages leaderboard (Community → Top scope). Rows arrive
@@ -16,10 +16,10 @@ export default function TopPassages({ topPassages, topPassagesLoading, goToPassa
         <div className="text-sm text-gray-400 dark:text-gray-500 animate-pulse py-8">Loading…</div>
       ) : topPassages.length === 0 ? (
         <div className="text-sm text-gray-400 dark:text-gray-500 italic py-8">No community notes yet.</div>
-      ) : topPassages.map(({ passage_ref, bookId, chapter, notes, lines, displayRef, pericope }, idx) => (
+      ) : topPassages.map(({ passage_ref, notes, lines, displayRef, pericope }, idx) => (
         <button
           key={passage_ref}
-          onClick={() => goToPassage(bookId, chapter)}
+          onClick={() => goToPassage(passage_ref)}
           className="w-full text-left flex items-center gap-3 px-4 py-3 border border-gray-100 dark:border-gray-800 rounded-lg bg-white dark:bg-gray-900 hover:border-gray-300 dark:hover:border-gray-600 transition-colors group"
         >
           <span className="text-xs font-mono text-gray-300 dark:text-gray-600 w-5 text-right flex-shrink-0">

@@ -1,22 +1,24 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { useUser } from '@/lib/useUser'
 import { BOOKS_INDEX, TRACKS, getBookMeta, type Book } from '@/lib/books-index'
 import {
   THEME_DOT, passageKey,
-  type Mode, type CommunityScope, type SearchResult, type Track,
+  type Mode, type CommunityScope, type Track,
 } from './types'
 import { useChapterScroll } from './hooks/useChapterScroll'
 import { usePassages } from './hooks/usePassages'
 import { useNotes } from './hooks/useNotes'
 import { useCommunity } from './hooks/useCommunity'
+import { useNoteSearch } from './hooks/useNoteSearch'
 import CommunityFeed from './components/CommunityFeed'
 import TopPassages from './components/TopPassages'
 import StudyLines from './components/StudyLines'
 import CommunityThread from './components/CommunityThread'
 import ShortcutsHelp from './components/ShortcutsHelp'
+import ExportMenu from './components/ExportMenu'
 
 // The active book's full data is resolved server-side (see page.tsx) and passed
 // in as a prop, so the browser never loads the whole-Bible dataset.
@@ -42,20 +44,16 @@ export default function NotebookClient({ book }: { book: Book }) {
   const [themeInput, setThemeInput] = useState('')
   const [editingTheme, setEditingTheme] = useState(false)
 
-  // Sidebar / search / export
+  // Sidebar
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
-  const [searchLoading, setSearchLoading] = useState(false)
-  const [exportOpen, setExportOpen] = useState(false)
-  const [exporting, setExporting] = useState(false)
-  const [exportMessage, setExportMessage] = useState('')
-  const exportRef = useRef<HTMLDivElement>(null)
-  const searchTimer = useRef<ReturnType<typeof setTimeout>>()
 
   // Community view scope
   const [communityScope, setCommunityScope] = useState<CommunityScope>('book')
   const [filterHasNotes, setFilterHasNotes] = useState(false)
+
+  // A passage to scroll to once the reading column has rendered (set when a
+  // community row in another scope is clicked; flushed by the effect below).
+  const pendingScrollRef = useRef<string | null>(null)
 
   // Reading position, lazy passage loading, notes, and community reads each
   // live in a dedicated hook (see ./hooks).
@@ -82,6 +80,8 @@ export default function NotebookClient({ book }: { book: Book }) {
     replyText, setReplyText, postReply,
   } = useCommunity({ mode, bookId, communityScope, supabase })
 
+  const { searchQuery, setSearchQuery, searchResults, searchLoading } = useNoteSearch({ user, supabase })
+
   // Load profile preferences once the user is known
   useEffect(() => {
     if (!user) return
@@ -107,55 +107,54 @@ export default function NotebookClient({ book }: { book: Book }) {
     })
   }
 
-  const goToPassage = (noteBookId: string, noteChapter: number) => {
-    setCommunityScope('book')
-    if (noteBookId === bookId) {
-      scrollToChapter(noteChapter)
-    } else {
-      router.push(`/notebook/${noteBookId}/${noteChapter}`)
-    }
+  // Scroll to a specific passage chunk by its anchor id, if it is on the page.
+  const scrollToPassage = (passageRef: string, behavior: ScrollBehavior = 'smooth') => {
+    const el = document.getElementById(`passage-${passageRef}`)
+    if (!el) return false
+    el.scrollIntoView({ behavior, block: 'start' })
+    return true
   }
 
-  const filteredCommunityNotes = communityNotes.filter(n => activeTracks.has(n.track_id))
+  // Jump from a community row to the passage it belongs to. Same book: switch to
+  // the per-book view and scroll to the exact chunk (deferred via pendingScroll
+  // if that view has not rendered yet). Other book: navigate with a passage hash.
+  const goToPassage = (passageRef: string) => {
+    const parts = passageRef.split(':')
+    const noteBookId = parts[0]
+    const noteChapter = parseInt(parts[1]) || 1
+    if (noteBookId !== bookId) {
+      router.push(`/notebook/${noteBookId}/${noteChapter}#passage-${encodeURIComponent(passageRef)}`)
+      return
+    }
+    setCommunityScope('book')
+    if (!scrollToPassage(passageRef)) pendingScrollRef.current = passageRef
+  }
+
+  // Flush a pending scroll once the per-book reading column has rendered.
+  useEffect(() => {
+    if (!pendingScrollRef.current) return
+    if (scrollToPassage(pendingScrollRef.current)) pendingScrollRef.current = null
+  }, [communityScope, mode])
+
+  // Cross-book jumps land with a #passage-<ref> hash; scroll to it once the new
+  // book's chapter sections have registered.
+  useEffect(() => {
+    const hash = window.location.hash
+    if (!hash.startsWith('#passage-')) return
+    const passageRef = decodeURIComponent(hash.slice('#passage-'.length))
+    const t = setTimeout(() => scrollToPassage(passageRef, 'instant'), 150)
+    return () => clearTimeout(t)
+  }, [bookId])
+
+  const filteredCommunityNotes = useMemo(
+    () => communityNotes.filter(n => activeTracks.has(n.track_id)),
+    [communityNotes, activeTracks]
+  )
 
   const handleBookChange = (newBookId: string) => {
     if (newBookId === bookId) return
     router.push(`/notebook/${newBookId}/1`)
   }
-
-  // Export dropdown: close on click-outside or Escape, and clear any stale message when closed
-  useEffect(() => {
-    if (!exportOpen) { setExportMessage(''); return }
-    const onPointerDown = (e: MouseEvent) => {
-      if (exportRef.current && !exportRef.current.contains(e.target as Node)) setExportOpen(false)
-    }
-    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') setExportOpen(false) }
-    document.addEventListener('mousedown', onPointerDown)
-    document.addEventListener('keydown', onKeyDown)
-    return () => {
-      document.removeEventListener('mousedown', onPointerDown)
-      document.removeEventListener('keydown', onKeyDown)
-    }
-  }, [exportOpen])
-
-  useEffect(() => {
-    clearTimeout(searchTimer.current)
-    if (!searchQuery.trim()) { setSearchResults([]); setSearchLoading(false); return }
-    if (!user) { setSearchLoading(false); return }
-    setSearchLoading(true)
-    searchTimer.current = setTimeout(async () => {
-      const { data, error } = await supabase.from('notes')
-        .select('passage_ref, track_id, content')
-        .eq('user_id', user.id)
-        .ilike('content', `%${searchQuery.trim()}%`)
-        .neq('content', '')
-        .order('passage_ref')
-        .limit(30)
-      if (error) console.error('[three-lines] search query failed:', error)
-      setSearchResults(data ?? [])
-      setSearchLoading(false)
-    }, 300)
-  }, [searchQuery, user])
 
   useEffect(() => {
     setActiveTracks(prev => {
@@ -180,68 +179,12 @@ export default function NotebookClient({ book }: { book: Book }) {
     const parts = passageRef.split(':')
     const rBookId = parts[0]
     const rChapter = parseInt(parts[1])
-    setSearchQuery('')
-    setSearchResults([])
+    setSearchQuery('') // clearing the query also clears results (see useNoteSearch)
     if (rBookId === bookId) {
       scrollToChapter(rChapter)
     } else {
       router.push(`/notebook/${rBookId}/${rChapter}`)
     }
-  }
-
-  const exportNotes = async (scope: 'book' | 'all') => {
-    if (!user) return
-    setExporting(true)
-    const base = supabase.from('notes')
-      .select('passage_ref, track_id, content')
-      .eq('user_id', user.id)
-      .neq('content', '')
-      .order('passage_ref')
-    const { data, error } = await (scope === 'book' ? base.like('passage_ref', `${bookId}:%`) : base)
-    setExporting(false)
-    if (error) {
-      console.error('[three-lines] export query failed:', error)
-      setExportMessage('Export failed. Please try again.')
-      return
-    }
-    if (!data || data.length === 0) {
-      setExportMessage(scope === 'book'
-        ? `No notes yet for ${book.name}.`
-        : 'No notes yet in any book.')
-      return
-    }
-    setExportOpen(false)
-    const lines: string[] = [
-      `Three Lines Notes — ${scope === 'book' ? book.name : 'All Books'}`,
-      `Exported ${new Date().toLocaleDateString()}`,
-      '',
-    ]
-    let lastRef = ''
-    data.forEach(note => {
-      const parts = note.passage_ref.split(':')
-      const rBook = getBookMeta(parts[0])
-      const track = TRACKS.find(t => t.id === note.track_id)
-      if (note.passage_ref !== lastRef) {
-        if (lastRef) lines.push('')
-        lines.push(`--- ${rBook?.name ?? parts[0]} ${parts[1]}:${parts.slice(2).join(':')} ---`)
-        lastRef = note.passage_ref
-      }
-      lines.push(`[${track?.label ?? note.track_id}]`)
-      lines.push(note.content)
-    })
-    const text = lines.join('\n')
-    const filename = scope === 'book'
-      ? `${book.name.toLowerCase().replace(/\s+/g, '-')}-notes.txt`
-      : 'three-lines-notes.txt'
-    const blob = new Blob([text], { type: 'text/plain' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
   const themeTrack: Track | null = themeLabel ? {
@@ -353,7 +296,7 @@ export default function NotebookClient({ book }: { book: Book }) {
               </div>
             ) : searchResults.length === 0 ? (
               <div className="px-3 py-4 text-xs text-gray-500 dark:text-gray-400 italic">No notes found.</div>
-            ) : searchResults.map((r, i) => {
+            ) : searchResults.map(r => {
               const parts = r.passage_ref.split(':')
               const rBook = getBookMeta(parts[0])
               const rTrack = TRACKS.find(t => t.id === r.track_id)
@@ -363,7 +306,7 @@ export default function NotebookClient({ book }: { book: Book }) {
               const snippet = r.content.slice(start, ci + q.length + 60)
               return (
                 <button
-                  key={i}
+                  key={`${r.passage_ref}|${r.track_id}`}
                   onClick={() => goToResult(r.passage_ref)}
                   className="w-full text-left px-3 py-2.5 border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                 >
@@ -424,43 +367,7 @@ export default function NotebookClient({ book }: { book: Book }) {
         </div>
 
         {/* Export */}
-        {user && (
-          <div ref={exportRef} className="border-t border-gray-100 dark:border-gray-800 flex-shrink-0 relative">
-            <button
-              onClick={() => setExportOpen(v => !v)}
-              aria-expanded={exportOpen}
-              aria-haspopup="menu"
-              className="w-full text-left px-3 py-2.5 text-xs text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
-            >
-              ↓ Export notes
-            </button>
-            {exportOpen && (
-              <div role="menu" className="absolute bottom-full left-0 right-0 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-md">
-                <button
-                  role="menuitem"
-                  onClick={() => exportNotes('book')}
-                  disabled={exporting}
-                  className="w-full text-left px-3 py-2.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors border-b border-gray-100 dark:border-gray-800 disabled:opacity-40"
-                >
-                  {book.name}
-                </button>
-                <button
-                  role="menuitem"
-                  onClick={() => exportNotes('all')}
-                  disabled={exporting}
-                  className="w-full text-left px-3 py-2.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-40"
-                >
-                  All books
-                </button>
-                {exportMessage && (
-                  <p role="status" className="px-3 py-2.5 text-xs text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/20">
-                    {exportMessage}
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-        )}
+        {user && <ExportMenu user={user} book={book} supabase={supabase} />}
       </aside>
 
       {/* Main area — continuous scroll */}
@@ -675,7 +582,7 @@ export default function NotebookClient({ book }: { book: Book }) {
                   const chunkHasNotes = Object.entries(notes).some(([k, v]) => k.startsWith(`${pKey}|`) && v.trim())
 
                   return (
-                    <div key={chunk.ref} className="mb-5">
+                    <div key={chunk.ref} id={`passage-${pKey}`} className="mb-5 scroll-mt-24">
 
                       {/* Passage text */}
                       <div className="border border-gray-100 dark:border-gray-800 rounded-t-lg p-4 bg-white dark:bg-gray-900">

@@ -86,6 +86,17 @@ alter table reports drop constraint if exists reports_note_id_reporter_id_key;
 alter table reports add constraint reports_note_id_reporter_id_key
   unique (note_id, reporter_id);
 
+-- Length caps: bound user-supplied content so a single row cannot store and
+-- broadcast an unbounded payload. NOT VALID skips existing rows so this is safe
+-- to run on a populated database; new and updated rows are checked.
+alter table notes drop constraint if exists notes_content_length;
+alter table notes add constraint notes_content_length
+  check (char_length(content) <= 5000) not valid;
+
+alter table comments drop constraint if exists comments_content_length;
+alter table comments add constraint comments_content_length
+  check (char_length(content) <= 5000) not valid;
+
 -- Indexes
 
 create index if not exists reports_status_created_at_idx on reports (status, created_at desc);

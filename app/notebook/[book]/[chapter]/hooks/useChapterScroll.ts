@@ -96,8 +96,13 @@ export function useChapterScroll({ book, urlChapter, setTranslation }: Params): 
   // Keyboard shortcuts: j/→ next chapter, k/← prev chapter, / focus book selector, t cycle translation
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement).tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      // Skip when typing, when a control has focus (so pressing a key right
+      // after clicking a button doesn't fire a shortcut), or with a modifier.
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      const target = e.target as HTMLElement
+      const tag = target.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON') return
+      if (target.isContentEditable) return
       switch (e.key) {
         case 'ArrowLeft':
         case 'k': {

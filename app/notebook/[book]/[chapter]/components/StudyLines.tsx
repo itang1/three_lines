@@ -1,6 +1,7 @@
 'use client'
+import { useLayoutEffect, useRef } from 'react'
 import type { User } from '@supabase/supabase-js'
-import type { Track } from '../types'
+import { NOTE_MAX_LENGTH, type Track } from '../types'
 
 type Props = {
   pKey: string
@@ -17,9 +18,23 @@ type Props = {
   toggleNoteVisibility: (passageRef: string) => void
 }
 
-const autoResize = (el: HTMLTextAreaElement) => {
-  el.style.height = 'auto'
-  el.style.height = el.scrollHeight + 'px'
+// Textarea that grows to fit its content, including content loaded after mount.
+// The resize runs in a layout effect keyed on `value`, so a saved note longer
+// than one line is shown in full on load, not just after the user types.
+function AutoTextarea({
+  value, onChange, ...rest
+}: {
+  value: string
+  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void
+} & React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  const ref = useRef<HTMLTextAreaElement>(null)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = el.scrollHeight + 'px'
+  }, [value])
+  return <textarea ref={ref} value={value} onChange={onChange} rows={1} {...rest} />
 }
 
 // Study-mode note lines for one passage chunk: one textarea per active track,
@@ -42,16 +57,13 @@ export default function StudyLines({
               <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: t.dot }} />
               <span className="text-xs font-medium text-gray-500 leading-tight truncate">{t.label}</span>
             </div>
-            <textarea
-              aria-label={`${t.label} — ${label}`}
+            <AutoTextarea
+              aria-label={`${t.label}, ${label}`}
               className="flex-1 text-base p-2.5 outline-none resize-none bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 placeholder-gray-300 dark:placeholder-gray-600 min-h-[42px] overflow-hidden"
               placeholder={t.placeholder}
               value={notes[noteKey] ?? ''}
-              rows={1}
-              onChange={e => {
-                autoResize(e.target)
-                handleNoteChange(pKey, t.id, e.target.value)
-              }}
+              maxLength={NOTE_MAX_LENGTH}
+              onChange={e => handleNoteChange(pKey, t.id, e.target.value)}
             />
           </div>
         )

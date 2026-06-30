@@ -13,7 +13,7 @@ type Props = {
   allNotesLoading: boolean
   allNotesHasMore: boolean
   loadMoreAllNotes: () => void
-  goToPassage: (bookId: string, chapter: number) => void
+  goToPassage: (passageRef: string) => void
 }
 
 // Cross-book community feed (Community → Feed scope).
@@ -34,7 +34,6 @@ export default function CommunityFeed({
           {visible.map(note => {
             const parts = note.passage_ref.split(':')
             const noteBookId = parts[0]
-            const noteChapter = parseInt(parts[1]) || 1
             const noteBook    = getBookMeta(noteBookId)
             const track = note.track_id === 'theme'
               ? { label: themeLabel || 'Theme', dot: THEME_DOT }
@@ -54,7 +53,7 @@ export default function CommunityFeed({
                     </span>
                   )}
                   <button
-                    onClick={() => goToPassage(noteBookId, noteChapter)}
+                    onClick={() => goToPassage(note.passage_ref)}
                     className="text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 ml-auto"
                   >
                     {noteBook?.name ?? noteBookId} {parts[1]}:{parts.slice(2).join(':')} →

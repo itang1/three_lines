@@ -3,7 +3,7 @@ import type { Dispatch, SetStateAction } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { TRACKS } from '@/lib/books-index'
 import ReportButton from '@/components/ReportButton'
-import { THEME_DOT, type CommunityNote, type Reply } from '../types'
+import { THEME_DOT, NOTE_MAX_LENGTH, type CommunityNote, type Reply } from '../types'
 
 type Props = {
   pKey: string
@@ -87,6 +87,7 @@ export default function CommunityThread({
                       className="flex-1 border border-gray-200 dark:border-gray-700 rounded px-2 py-1.5 text-xs outline-none bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
                       placeholder="Write a reply..."
                       value={replyText[note.id] ?? ''}
+                      maxLength={NOTE_MAX_LENGTH}
                       onChange={e => setReplyText(prev => ({ ...prev, [note.id]: e.target.value }))}
                       onKeyDown={e => e.key === 'Enter' && postReply(note.id, pKey)}
                     />

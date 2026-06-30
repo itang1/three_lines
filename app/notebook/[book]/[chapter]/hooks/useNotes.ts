@@ -106,6 +106,17 @@ export function useNotes({ user, bookId, supabase, notesPublicDefault }: Params)
     setNoteVisibility(prev => prev[passageRef] !== undefined ? prev : { ...prev, [passageRef]: effectivePublic })
     clearTimeout(saveTimers.current[key])
     saveTimers.current[key] = setTimeout(async () => {
+      // Emptied line: delete the row rather than persisting an empty string,
+      // so cleared notes don't accumulate as invisible content:'' rows.
+      if (!value.trim()) {
+        const { error } = await supabase.from('notes')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('passage_ref', passageRef)
+          .eq('track_id', trackId)
+        if (error) console.error('[three-lines] note clear failed:', error)
+        return
+      }
       const { error } = await supabase.from('notes').upsert({
         user_id: user.id,
         passage_ref: passageRef,
