@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://threelines.app'),
   title: {
     default: 'Three Lines',
-    template: '%s — Three Lines',
+    template: '%s | Three Lines',
   },
   description: 'A tool for studying Scripture through different analytical lenses, including: what events occur, how the characters respond, your own reflections, historical context, literary style, and more.',
   openGraph: {

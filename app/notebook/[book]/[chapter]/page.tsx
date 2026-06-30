@@ -11,7 +11,7 @@ export async function generateMetadata(
   const ch = parseInt(chapter) || 1
   return {
     title: `${bookName} ${ch}`,
-    description: `Study ${bookName} chapter ${ch} using the Earl Palmer three lines method — observe what happens, how people respond, and write your own reflection.`,
+    description: `Study ${bookName} chapter ${ch} using the Earl Palmer three lines method. Observe what happens, how people respond, and write your own reflection.`,
   }
 }
 

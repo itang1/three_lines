@@ -219,7 +219,7 @@ export default function NotebookClient() {
 
   // Keep browser tab title in sync with the active chapter as the user scrolls
   useEffect(() => {
-    document.title = `${book.name} ${activeChapter} — Three Lines`
+    document.title = `${book.name} ${activeChapter} | Three Lines`
   }, [book.name, activeChapter])
 
   // Load which chapters have notes (progress dots)
