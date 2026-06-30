@@ -2,8 +2,8 @@
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
+import { useUser } from '@/lib/useUser'
 import { useTheme } from '@/components/ThemeProvider'
-import type { User } from '@supabase/supabase-js'
 
 function SunIcon() {
   return (
@@ -30,7 +30,7 @@ function MoonIcon() {
 }
 
 export default function Navbar() {
-  const [user, setUser] = useState<User | null>(null)
+  const user = useUser()
   const [menuOpen, setMenuOpen] = useState(false)
   const [displayName, setDisplayName] = useState<string | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
@@ -42,14 +42,6 @@ export default function Navbar() {
   const { theme, toggle } = useTheme()
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user))
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
-      setUser(session?.user ?? null)
-    })
-    return () => subscription.unsubscribe()
-  }, [])
-
-  useEffect(() => {
     if (!user) { setDisplayName(null); setIsAdmin(false); return }
     supabase.from('profiles')
       .select('display_name, is_admin')
@@ -58,7 +50,7 @@ export default function Navbar() {
       .then(({ data }) => {
         if (data) {
           setDisplayName(data.display_name)
-          setIsAdmin(!!(data as { is_admin?: boolean }).is_admin)
+          setIsAdmin(!!data.is_admin)
           if (data.display_name === 'Anonymous') {
             setShowNamePrompt(true)
           }
@@ -94,7 +86,7 @@ export default function Navbar() {
 
   const signOut = async () => {
     await supabase.auth.signOut()
-    setUser(null)
+    // useUser's auth subscription clears `user`; the profile effect resets the rest
     setDisplayName(null)
   }
 

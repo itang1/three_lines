@@ -77,8 +77,10 @@ async function notifyReplyAuthor(
   if (!parentUser?.email) return
 
   const replierName = replierProfile?.display_name ?? 'Someone'
+  // passage_ref is "book:chapter:chunkRef"; the route is /notebook/[book]/[chapter].
+  // Append the chapter anchor so the link lands on the right section in long books.
   const [bookId, chapter] = passageRef.split(':')
-  const url = `https://threelines.app/notebook/${bookId}/${chapter}`
+  const url = `https://threelines.app/notebook/${bookId}/${chapter}#chapter-${chapter}`
 
   await fetch('https://api.resend.com/emails', {
     method: 'POST',

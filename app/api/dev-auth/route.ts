@@ -45,7 +45,7 @@ export async function POST(req: Request) {
       id: userId,
       display_name: 'Dev User',
       preferred_translation: 'ESV',
-      notes_public_default: false,
+      notes_public_default: true,
       is_admin: true,
     }, { onConflict: 'id' })
   }

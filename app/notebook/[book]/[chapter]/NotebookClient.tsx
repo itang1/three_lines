@@ -2,9 +2,9 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { useUser } from '@/lib/useUser'
 import { BOOKS, TRACKS, getChapter } from '@/lib/data'
 import ReportButton from '@/components/ReportButton'
-import type { User } from '@supabase/supabase-js'
 
 type Mode = 'study' | 'community'
 
@@ -13,7 +13,7 @@ type CommunityNote = {
   passage_ref: string
   track_id: string
   content: string
-  updated_at: string
+  updated_at: string | null
   profiles: { display_name: string }
 }
 
@@ -21,7 +21,7 @@ type Reply = {
   id: string
   user_id: string
   content: string
-  created_at: string
+  created_at: string | null
   profiles: { display_name: string }
 }
 
@@ -35,7 +35,7 @@ export default function NotebookClient() {
   const urlBook    = typeof params.book    === 'string' ? params.book    : 'john'
   const urlChapter = typeof params.chapter === 'string' ? Math.max(1, parseInt(params.chapter) || 1) : 1
 
-  const [user, setUser] = useState<User | null>(null)
+  const user = useUser()
 
   // Navigation
   const [bookId, setBookId]               = useState(urlBook)
@@ -97,36 +97,22 @@ export default function NotebookClient() {
 
   const book = BOOKS.find(b => b.id === bookId) ?? BOOKS[0]
 
-  // Auth — also loads preferred translation from profile
+  // Load profile preferences once the user is known
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user)
-      if (data.user) {
-        supabase.from('profiles')
-          .select('preferred_translation, notes_public_default')
-          .eq('id', data.user.id)
-          .single()
-          .then(({ data: profile }) => {
-            if (profile?.preferred_translation) setTranslation(profile.preferred_translation)
-            if (profile?.notes_public_default != null) setNotesPublicDefault(profile.notes_public_default)
-          })
-        supabase.from('profiles')
-          .select('theme_track_label')
-          .eq('id', data.user.id)
-          .single()
-          .then(({ data: profile }) => {
-            if ((profile as any)?.theme_track_label) {
-              setThemeLabel((profile as any).theme_track_label)
-              setThemeInput((profile as any).theme_track_label)
-            }
-          })
-      }
-    })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
-      setUser(session?.user ?? null)
-    })
-    return () => subscription.unsubscribe()
-  }, [])
+    if (!user) return
+    supabase.from('profiles')
+      .select('preferred_translation, notes_public_default, theme_track_label')
+      .eq('id', user.id)
+      .single()
+      .then(({ data: profile }) => {
+        if (profile?.preferred_translation) setTranslation(profile.preferred_translation)
+        if (profile?.notes_public_default != null) setNotesPublicDefault(profile.notes_public_default)
+        if (profile?.theme_track_label) {
+          setThemeLabel(profile.theme_track_label)
+          setThemeInput(profile.theme_track_label)
+        }
+      })
+  }, [user])
 
   // Handle browser back/forward: sync bookId state with URL params
   useEffect(() => {
@@ -304,7 +290,7 @@ export default function NotebookClient() {
       .eq('is_public', true)
       .neq('content', '')
       .order('updated_at', { ascending: false })
-      .then(({ data }) => { if (data) setCommunityNotes(data as unknown as CommunityNote[]) })
+      .then(({ data }) => { if (data) setCommunityNotes(data) })
   }, [mode, bookId, communityScope])
 
   // Load community notes across all books
@@ -321,7 +307,7 @@ export default function NotebookClient() {
       .order('updated_at', { ascending: false })
       .range(0, 49)
       .then(({ data }) => {
-        const results = (data ?? []) as unknown as CommunityNote[]
+        const results = data ?? []
         setAllNotes(results)
         setAllNotesHasMore(results.length === 50)
         setAllNotesLoading(false)
@@ -413,7 +399,7 @@ export default function NotebookClient() {
       .select('id, user_id, content, created_at, profiles(display_name)')
       .eq('parent_id', commentId)
       .order('created_at', { ascending: true })
-    if (data) setReplies(prev => ({ ...prev, [commentId]: data as unknown as Reply[] }))
+    if (data) setReplies(prev => ({ ...prev, [commentId]: data }))
   }
 
   const toggleThread = (id: string) => {
@@ -449,7 +435,7 @@ export default function NotebookClient() {
       .neq('content', '')
       .order('updated_at', { ascending: false })
       .range(next, next + 49)
-    const results = (data ?? []) as unknown as CommunityNote[]
+    const results = data ?? []
     setAllNotes(prev => [...prev, ...results])
     setAllNotesHasMore(results.length === 50)
     setAllNotesLoading(false)
@@ -1286,7 +1272,7 @@ export default function NotebookClient() {
                                     </span>
                                   )}
                                   <span className="text-[10px] text-gray-400 ml-auto">
-                                    {new Date(note.updated_at).toLocaleDateString()}
+                                    {note.updated_at ? new Date(note.updated_at).toLocaleDateString() : ''}
                                   </span>
                                 </div>
                                 <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed ml-8 mb-2">{note.content}</p>
@@ -1309,7 +1295,7 @@ export default function NotebookClient() {
                                       <div key={r.id} className="py-2 border-b border-gray-50 dark:border-gray-800 last:border-b-0">
                                         <div className="flex items-center gap-2 mb-1">
                                           <span className="text-[10px] font-medium text-gray-600 dark:text-gray-400">{r.profiles?.display_name}</span>
-                                          <span className="text-[10px] text-gray-400">{new Date(r.created_at).toLocaleDateString()}</span>
+                                          <span className="text-[10px] text-gray-400">{r.created_at ? new Date(r.created_at).toLocaleDateString() : ''}</span>
                                         </div>
                                         <p className="text-xs text-gray-500 leading-relaxed">{r.content}</p>
                                       </div>

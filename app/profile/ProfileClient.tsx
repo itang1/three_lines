@@ -19,7 +19,7 @@ export default function ProfileClient() {
   const [nameInput, setNameInput] = useState('')
   const [nameSaving, setNameSaving] = useState(false)
   const [nameSaved, setNameSaved] = useState(false)
-  const [notesPublicDefault, setNotesPublicDefault] = useState(false)
+  const [notesPublicDefault, setNotesPublicDefault] = useState(true)
   const [stats, setStats] = useState<Stats | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -43,7 +43,7 @@ export default function ProfileClient() {
       if (profile) {
         setDisplayName(profile.display_name)
         setNameInput(profile.display_name)
-        setNotesPublicDefault(profile.notes_public_default ?? false)
+        setNotesPublicDefault(profile.notes_public_default ?? true)
       }
 
       if (notes) {
