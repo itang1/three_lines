@@ -19,11 +19,21 @@ export type Reply = {
   profiles: { display_name: string }
 }
 
-export type TopPassage = { passage_ref: string; notes: number; lines: number }
+// Enriched server-side (see /api/top-passages) so the browser never needs the
+// full pericope dataset to render display refs.
+export type TopPassage = {
+  passage_ref: string
+  bookId: string
+  chapter: number
+  notes: number
+  lines: number
+  displayRef: string
+  pericope: string
+}
 
 export type SearchResult = { passage_ref: string; track_id: string; content: string }
 
-// A renderable note line — the fixed TRACKS plus the user's optional custom line.
+// A renderable note line: the fixed TRACKS plus the user's optional custom line.
 export type Track = { id: string; label: string; dot: string; placeholder: string }
 
 export const THEME_DOT = '#0891B2'

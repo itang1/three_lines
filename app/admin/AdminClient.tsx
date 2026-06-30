@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { BOOKS, TRACKS } from '@/lib/data'
+import { getBookMeta, TRACKS } from '@/lib/books-index'
 
 type Report = {
   id: string
@@ -27,7 +27,7 @@ type Group = {
 
 function passageLabel(ref: string) {
   const [bookId, chapter, ...rest] = ref.split(':')
-  const book = BOOKS.find(b => b.id === bookId)
+  const book = getBookMeta(bookId)
   return `${book?.name ?? bookId} ${chapter}:${rest.join(':')}`
 }
 

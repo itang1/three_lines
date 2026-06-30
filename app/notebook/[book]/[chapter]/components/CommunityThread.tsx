@@ -1,7 +1,7 @@
 'use client'
 import type { Dispatch, SetStateAction } from 'react'
 import type { User } from '@supabase/supabase-js'
-import { TRACKS } from '@/lib/data'
+import { TRACKS } from '@/lib/books-index'
 import ReportButton from '@/components/ReportButton'
 import { THEME_DOT, type CommunityNote, type Reply } from '../types'
 

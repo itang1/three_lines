@@ -1,9 +1,9 @@
 'use client'
 import { useState, useEffect, useRef, useCallback, type RefObject } from 'react'
-import { getChapter } from '@/lib/data'
+import type { Book } from '@/lib/books-index'
 
 type Params = {
-  bookId: string
+  book: Book
   translation: string
   showVerseNumbers: boolean
   chapterRefs: RefObject<Map<number, HTMLElement>>
@@ -17,7 +17,8 @@ type Result = {
 
 // Lazy-loads passage text per chapter chunk as sections scroll into view,
 // deduping requests and clearing the cache when the book or rendering prefs change.
-export function usePassages({ bookId, translation, showVerseNumbers, chapterRefs }: Params): Result {
+export function usePassages({ book, translation, showVerseNumbers, chapterRefs }: Params): Result {
+  const bookId = book.id
   const [passageTexts, setPassageTexts]       = useState<Record<string, string>>({})
   const [loadingPassages, setLoadingPassages] = useState<Set<string>>(new Set())
   const requestedChunks = useRef<Set<string>>(new Set())
@@ -55,7 +56,7 @@ export function usePassages({ bookId, translation, showVerseNumbers, chapterRefs
           if (!entry.isIntersecting) return
           const chNum = parseInt(entry.target.getAttribute('data-chapter') ?? '')
           if (isNaN(chNum)) return
-          getChapter(bookId, chNum)?.chunks.forEach(chunk => fetchChunk(chNum, chunk.esvRef))
+          book.chapters.find(c => c.ch === chNum)?.chunks.forEach(chunk => fetchChunk(chNum, chunk.esvRef))
         })
       },
       { rootMargin: '600px 0px' }

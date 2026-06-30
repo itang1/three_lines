@@ -1,14 +1,11 @@
 'use client'
 import { useEffect, useRef, useState, type RefObject } from 'react'
-import type { Book } from '@/lib/data'
+import type { Book } from '@/lib/books-index'
 import { TRANSLATIONS } from '../types'
 
 type Params = {
-  bookId: string
   book: Book
-  urlBook: string
   urlChapter: number
-  setBookId: (id: string) => void
   setTranslation: (fn: (t: string) => string) => void
 }
 
@@ -22,17 +19,18 @@ type Result = {
 }
 
 // Owns the continuous-scroll reading position: which chapter is active, the
-// scroll/keyboard navigation, and keeping the URL + tab title in sync.
-export function useChapterScroll({
-  bookId, book, urlBook, urlChapter, setBookId, setTranslation,
-}: Params): Result {
+// scroll/keyboard navigation, and keeping the URL + tab title in sync. The
+// active book comes from the server-rendered route, so book changes arrive as
+// a new `book` prop rather than client state.
+export function useChapterScroll({ book, urlChapter, setTranslation }: Params): Result {
+  const bookId = book.id
   const [activeChapter, setActiveChapter] = useState(urlChapter)
 
   const chapterRefs     = useRef<Map<number, HTMLElement>>(new Map())
   const scrollContainer = useRef<HTMLDivElement>(null)
   const bookSelectRef   = useRef<HTMLSelectElement>(null)
-  // Chapter to scroll to after the next book-change render cycle
-  const pendingScrollChapter = useRef<number | null>(null)
+  // Tracks the book we last laid out, to tell first mount from a book change.
+  const prevBookId = useRef<string | null>(null)
 
   const scrollToChapter = (chNum: number) => {
     setActiveChapter(chNum)
@@ -40,35 +38,32 @@ export function useChapterScroll({
     chapterRefs.current.get(chNum)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
-  // Handle browser back/forward: sync bookId state with URL params
+  // On book change, land on the chapter named by the URL (chapter 1 for forward
+  // navigation; the saved chapter for browser back/forward or cross-book jumps).
+  // First mount starts at the top.
   useEffect(() => {
-    if (urlBook === bookId) return
-    // Back/forward navigation changed the book — note which chapter to land on
-    pendingScrollChapter.current = urlChapter
-    setBookId(urlBook)
-  }, [urlBook])
+    const firstMount = prevBookId.current === null
+    prevBookId.current = bookId
 
-  // On book change: reset scroll. If a back-nav set a pending chapter, scroll there instead.
-  useEffect(() => {
-    const target = pendingScrollChapter.current
-    if (target !== null) {
-      pendingScrollChapter.current = null
-      // Allow the new book's chapter refs to register before scrolling
-      const id = setTimeout(() => {
-        const el = chapterRefs.current.get(target)
-        if (el) {
-          el.scrollIntoView({ behavior: 'instant', block: 'start' })
-          setActiveChapter(target)
-        } else {
-          scrollContainer.current?.scrollTo({ top: 0 })
-          setActiveChapter(1)
-        }
-      }, 100)
-      return () => clearTimeout(id)
+    if (firstMount) {
+      setActiveChapter(1)
+      scrollContainer.current?.scrollTo({ top: 0 })
+      return
     }
 
-    setActiveChapter(1)
-    scrollContainer.current?.scrollTo({ top: 0 })
+    const target = urlChapter
+    // Allow the new book's chapter refs to register before scrolling
+    const id = setTimeout(() => {
+      const el = chapterRefs.current.get(target)
+      if (el && target > 1) {
+        el.scrollIntoView({ behavior: 'instant', block: 'start' })
+        setActiveChapter(target)
+      } else {
+        scrollContainer.current?.scrollTo({ top: 0 })
+        setActiveChapter(1)
+      }
+    }, 100)
+    return () => clearTimeout(id)
   }, [bookId])
 
   // Scroll listener: update active chapter + URL (replaceState avoids polluting history)

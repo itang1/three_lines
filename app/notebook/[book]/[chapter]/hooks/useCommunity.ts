@@ -74,21 +74,18 @@ export function useCommunity({ mode, bookId, communityScope, supabase }: Params)
       })
   }, [mode, communityScope])
 
-  // Load most-discussed passages (aggregated server-side so user_id stays in the DB)
+  // Load most-discussed passages. The route aggregates server-side (so user_id
+  // stays in the DB) and enriches each row with display info from the
+  // server-only pericope data.
   useEffect(() => {
     if (mode !== 'community' || communityScope !== 'top') return
     setTopPassages([])
     setTopPassagesLoading(true)
-    supabase.rpc('top_passages', { p_limit: 30 })
-      .then(({ data }) => {
-        const rows = (data ?? []) as TopPassage[]
-        setTopPassages(rows.map(r => ({
-          passage_ref: r.passage_ref,
-          notes: Number(r.notes),
-          lines: Number(r.lines),
-        })))
-        setTopPassagesLoading(false)
-      })
+    fetch('/api/top-passages')
+      .then(r => r.json())
+      .then(({ rows }) => setTopPassages((rows ?? []) as TopPassage[]))
+      .catch(() => setTopPassages([]))
+      .finally(() => setTopPassagesLoading(false))
   }, [mode, communityScope])
 
   const loadReplies = async (commentId: string) => {

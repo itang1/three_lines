@@ -1,6 +1,6 @@
 'use client'
 import type { User } from '@supabase/supabase-js'
-import { BOOKS, TRACKS } from '@/lib/data'
+import { getBookMeta, TRACKS } from '@/lib/books-index'
 import ReportButton from '@/components/ReportButton'
 import { THEME_DOT, type CommunityNote } from '../types'
 
@@ -35,7 +35,7 @@ export default function CommunityFeed({
             const parts = note.passage_ref.split(':')
             const noteBookId = parts[0]
             const noteChapter = parseInt(parts[1]) || 1
-            const noteBook    = BOOKS.find(b => b.id === noteBookId)
+            const noteBook    = getBookMeta(noteBookId)
             const track = note.track_id === 'theme'
               ? { label: themeLabel || 'Theme', dot: THEME_DOT }
               : TRACKS.find(t => t.id === note.track_id)

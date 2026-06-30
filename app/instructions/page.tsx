@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { TRACKS } from '@/lib/data'
+import { TRACKS } from '@/lib/books-index'
 
 export const metadata: Metadata = {
   title: 'How It Works',
@@ -11,7 +11,7 @@ export default function InstructionsPage() {
     <div className="max-w-xl mx-auto px-6 py-16">
       <h1 className="text-3xl font-serif font-medium text-gray-900 dark:text-gray-100 mb-3">Instructions</h1>
       <p className="text-base text-gray-500 dark:text-gray-400 mb-10 leading-relaxed">
-        Each passage has lines beneath it for you to write in. You do not have to fill every line; this tool was built to help you focus on the lines that are most useful to you. You can also toggle lines on and off to reduce visual clutter.
+        Each passage has lines beneath it for you to write in. You do not have to fill every line; just focus on the lines that are most useful to you. You can also toggle lines on and off to reduce visual clutter.
       </p>
 
       <section className="mb-10">
@@ -32,21 +32,33 @@ export default function InstructionsPage() {
       <section className="mb-10">
         <h2 className="text-xs font-semibold tracking-widest uppercase text-gray-400 dark:text-gray-500 mb-4">Example</h2>
         <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed mb-4">
-          John 1:1-18, The Prologue. Three of the six lines filled in.
+          John 1:1-18, The Prologue.
         </p>
         <div className="border border-gray-100 dark:border-gray-800 rounded-lg overflow-hidden">
           {[
             {
               track: TRACKS[0],
-              content: 'John opens with a declaration, not a story: the Word (logos) existed before creation, was with God, and was God. The Word entered the world but the world did not recognize him. He came to his own people and they did not receive him. John the Baptist appears as a witness to the light, explicitly not the light himself. Those who did receive the Word were given the right to become children of God. The Word became flesh and dwelt among us.',
+              content: 'An entity called the "Word" exists eternally with God. A man named John the Baptist appears as a witness to testify about this light.',
             },
             {
               track: TRACKS[1],
-              content: "John the Baptist deflects: \"I am not the light, I bear witness to it.\" The world's response is non-recognition - indifference rather than hostility at first. His own people's response is rejection. The contrast between those who receive and those who do not structures the entire prologue.",
+              content: 'There is active rejection of the Word.',
             },
             {
               track: TRACKS[2],
-              content: '"In the beginning" is deliberate - John is writing his own Genesis. The Word becoming flesh (eskēnōsen, "pitched his tent") is tabernacle language; God dwelling with his people again, but now in a body. Everything in the gospel will flow from this hinge.',
+              content: 'Receiving the Word is not an intellectual exercise but a personal encounter/reflection with the person Jesus.',
+            },
+            {
+              track: TRACKS[3],
+              content: 'The Greek term Logos was already familiar to philosophers like the Stoics, who used it for the rational principle that orders the universe.',
+            },
+            {
+              track: TRACKS[4],
+              content: 'Structured as a chiasm. The tone is authoritative.',
+            },
+            {
+              track: TRACKS[5],
+              content: '"In the beginning" mirrors Genesis.',
             },
           ].map(({ track, content }, i) => (
             <div key={track.id} className={`flex items-stretch ${i > 0 ? 'border-t border-gray-100 dark:border-gray-800' : ''}`}>

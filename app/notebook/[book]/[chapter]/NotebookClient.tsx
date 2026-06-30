@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { useUser } from '@/lib/useUser'
-import { BOOKS, TRACKS, getChapter } from '@/lib/data'
+import { BOOKS_INDEX, TRACKS, getBookMeta, type Book } from '@/lib/books-index'
 import {
   THEME_DOT, passageKey,
   type Mode, type CommunityScope, type SearchResult, type Track,
@@ -17,18 +17,17 @@ import TopPassages from './components/TopPassages'
 import StudyLines from './components/StudyLines'
 import CommunityThread from './components/CommunityThread'
 
-export default function NotebookClient() {
+// The active book's full data is resolved server-side (see page.tsx) and passed
+// in as a prop, so the browser never loads the whole-Bible dataset.
+export default function NotebookClient({ book }: { book: Book }) {
   const router = useRouter()
   const params = useParams()
   const supabase = createClient()
 
-  const urlBook    = typeof params.book    === 'string' ? params.book    : 'john'
+  const bookId = book.id
   const urlChapter = typeof params.chapter === 'string' ? Math.max(1, parseInt(params.chapter) || 1) : 1
 
   const user = useUser()
-
-  // Navigation
-  const [bookId, setBookId] = useState(urlBook)
 
   // UI
   const [mode, setMode]                         = useState<Mode>('study')
@@ -57,17 +56,15 @@ export default function NotebookClient() {
   const [communityScope, setCommunityScope] = useState<CommunityScope>('book')
   const [filterHasNotes, setFilterHasNotes] = useState(false)
 
-  const book = BOOKS.find(b => b.id === bookId) ?? BOOKS[0]
-
   // Reading position, lazy passage loading, notes, and community reads each
-  // live in a dedicated hook — see ./hooks.
+  // live in a dedicated hook (see ./hooks).
   const {
     activeChapter, setActiveChapter, scrollToChapter,
     chapterRefs, scrollContainer, bookSelectRef,
-  } = useChapterScroll({ bookId, book, urlBook, urlChapter, setBookId, setTranslation })
+  } = useChapterScroll({ book, urlChapter, setTranslation })
 
   const { passageTexts, loadingPassages } = usePassages({
-    bookId, translation, showVerseNumbers, chapterRefs,
+    book, translation, showVerseNumbers, chapterRefs,
   })
 
   const {
@@ -221,7 +218,7 @@ export default function NotebookClient() {
     let lastRef = ''
     data.forEach(note => {
       const parts = note.passage_ref.split(':')
-      const rBook = BOOKS.find(b => b.id === parts[0])
+      const rBook = getBookMeta(parts[0])
       const track = TRACKS.find(t => t.id === note.track_id)
       if (note.passage_ref !== lastRef) {
         if (lastRef) lines.push('')
@@ -310,7 +307,7 @@ export default function NotebookClient() {
             value={bookId}
             onChange={e => handleBookChange(e.target.value)}
           >
-            {BOOKS.map(b => (
+            {BOOKS_INDEX.map(b => (
               <option key={b.id} value={b.id}>{b.name}</option>
             ))}
           </select>
@@ -357,7 +354,7 @@ export default function NotebookClient() {
               <div className="px-3 py-4 text-xs text-gray-500 dark:text-gray-400 italic">No notes found.</div>
             ) : searchResults.map((r, i) => {
               const parts = r.passage_ref.split(':')
-              const rBook = BOOKS.find(b => b.id === parts[0])
+              const rBook = getBookMeta(parts[0])
               const rTrack = TRACKS.find(t => t.id === r.track_id)
               const q = searchQuery.trim().toLowerCase()
               const ci = r.content.toLowerCase().indexOf(q)
@@ -642,8 +639,7 @@ export default function NotebookClient() {
 
           {/* All chapters — continuous */}
           {!(mode === 'community' && communityScope !== 'book') && book.chapters.map(ch => {
-            const chapterData = getChapter(bookId, ch.ch)
-            if (!chapterData) return null
+            const chapterData = ch
             if (filterHasNotes && mode === 'community' && !chapterData.chunks.some(chunk =>
               filteredCommunityNotes.some(n => n.passage_ref === passageKey(bookId, ch.ch, chunk.ref))
             )) return null

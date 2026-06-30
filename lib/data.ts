@@ -1,51 +1,10 @@
-export type Chunk = { ref: string; esvRef: string; pericope: string }
-export type Chapter = { ch: number; chunks: Chunk[] }
-export type Book = { id: string; name: string; testament: 'OT' | 'NT'; chapters: Chapter[] }
-
-export const TRACKS = [
-  {
-    id: 'event',
-    label: 'What happens',
-    dot: '#378ADD',
-    placeholder: 'Record the scene objectively without interpretation.',
-    description: "Observe the scene without interpreting it. What occurs? Who is present? What is said or done?",
-  },
-  {
-    id: 'reactions',
-    label: 'How people respond',
-    dot: '#1D9E75',
-    placeholder: 'How do the characters in the scene respond to what happens?',
-    description: "How do the characters respond to what happens? Look for faith, confusion, hostility, wonder, silence, evasion.",
-  },
-  {
-    id: 'thoughts',
-    label: 'My thoughts',
-    dot: '#534AB7',
-    placeholder: 'Your personal response to the passage.',
-    description: "Your personal response to the passage. Questions, observations, connections, things that surprise or trouble you, ideas you want to return to.",
-  },
-  {
-    id: 'historical',
-    label: 'Historical context',
-    dot: '#D85A30',
-    placeholder: 'What do we know about the time, place, author, or audience?',
-    description: "The world behind the text. What were the historical circumstances, political climate, or authorial background that shaped this passage? What was the original audience likely to have understood or assumed? Why it was written, for whom, and under what conditions.",
-  },
-  {
-    id: 'literary',
-    label: 'Literary observation',
-    dot: '#BA7517',
-    placeholder: 'What kind of writing is this? Note tone, structure, imagery, genre.',
-    description: "The world within the text. What type of writing is this: narrative, poetry, letter, parable, apocalypse? How does the author use structure, repetition, imagery, or tone to shape meaning? What literary patterns or themes emerge?",
-  },
-  {
-    id: 'comparative',
-    label: 'Connections to other texts',
-    dot: '#993556',
-    placeholder: 'How does this compare to other texts, versions, or traditions?',
-    description: "The world around the text. How does this passage compare to parallel accounts in other Gospels, earlier Scripture, or contemporary texts from the same era? Are there signs of editing or reshaping from an earlier source? What cross-cultural motifs appear?",
-  },
-]
+// Types and the small, client-safe TRACKS / BOOKS_INDEX live in books-index.ts.
+// Re-export the types here so existing `@/lib/data` importers keep working.
+// IMPORTANT: BOOKS below is the full ~4,500-line dataset, so keep this module
+// server-only. Client components should import from '@/lib/books-index'.
+import type { Chapter, Book } from './books-index'
+export type { Chunk, Chapter, Book } from './books-index'
+export { TRACKS } from './books-index'
 
 // Books with pericope-level chunks use inline chapter arrays.
 // All other books use buildChapters() — one chunk per chapter, whole-chapter ESV ref.

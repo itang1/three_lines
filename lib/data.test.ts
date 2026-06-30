@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { BOOKS, TRACKS, getBook, getChapter } from './data'
+import { BOOKS_INDEX } from './books-index'
 
 describe('getBook', () => {
   it('finds a book by id', () => {
@@ -53,5 +54,20 @@ describe('BOOKS data integrity', () => {
     expect(TRACKS.map(t => t.id)).toEqual([
       'event', 'reactions', 'thoughts', 'historical', 'literary', 'comparative',
     ])
+  })
+})
+
+describe('BOOKS_INDEX stays in sync with BOOKS', () => {
+  // The client ships the lightweight BOOKS_INDEX, not the full BOOKS dataset.
+  // If they drift, the book picker / name lookups go stale. This guards it.
+  it('matches BOOKS id, name, testament, and chapter count in order', () => {
+    expect(BOOKS_INDEX).toEqual(
+      BOOKS.map(b => ({
+        id: b.id,
+        name: b.name,
+        testament: b.testament,
+        chapterCount: b.chapters.length,
+      }))
+    )
   })
 })
