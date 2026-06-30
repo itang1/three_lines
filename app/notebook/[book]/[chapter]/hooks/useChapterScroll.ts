@@ -15,7 +15,7 @@ type Result = {
   scrollToChapter: (chNum: number) => void
   chapterRefs: RefObject<Map<number, HTMLElement>>
   scrollContainer: RefObject<HTMLDivElement>
-  bookSelectRef: RefObject<HTMLSelectElement>
+  bookSelectRef: RefObject<HTMLButtonElement>
 }
 
 // Owns the continuous-scroll reading position: which chapter is active, the
@@ -28,7 +28,7 @@ export function useChapterScroll({ book, urlChapter, setTranslation }: Params): 
 
   const chapterRefs     = useRef<Map<number, HTMLElement>>(new Map())
   const scrollContainer = useRef<HTMLDivElement>(null)
-  const bookSelectRef   = useRef<HTMLSelectElement>(null)
+  const bookSelectRef   = useRef<HTMLButtonElement>(null)
   // Tracks the book we last laid out, to tell first mount from a book change.
   const prevBookId = useRef<string | null>(null)
 

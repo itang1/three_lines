@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { useUser } from '@/lib/useUser'
-import { BOOKS_INDEX, TRACKS, type Book } from '@/lib/books-index'
+import { TRACKS, type Book } from '@/lib/books-index'
 import {
   THEME_DOT, passageKey,
   type Mode, type CommunityScope, type Track,
@@ -14,6 +14,7 @@ import { useNotes } from './hooks/useNotes'
 import { useCommunity } from './hooks/useCommunity'
 import { useNoteSearch } from './hooks/useNoteSearch'
 import { useBookmarks } from './hooks/useBookmarks'
+import { useBookProgress } from './hooks/useBookProgress'
 import CommunityFeed from './components/CommunityFeed'
 import TopPassages from './components/TopPassages'
 import StudyLines from './components/StudyLines'
@@ -22,6 +23,7 @@ import ShortcutsHelp from './components/ShortcutsHelp'
 import ExportMenu from './components/ExportMenu'
 import TrackPills from './components/TrackPills'
 import SidebarChapterList from './components/SidebarChapterList'
+import BookPicker from './components/BookPicker'
 
 // The active book's full data is resolved server-side (see page.tsx) and passed
 // in as a prop, so the browser never loads the whole-Bible dataset.
@@ -86,6 +88,8 @@ export default function NotebookClient({ book }: { book: Book }) {
   const { searchQuery, setSearchQuery, searchResults, searchLoading } = useNoteSearch({ user, supabase })
 
   const { bookmarks, bookmarkedChapters, toggleBookmark } = useBookmarks({ user, bookId, supabase })
+
+  const bookChapters = useBookProgress({ user, supabase })
 
   // Load profile preferences once the user is known
   useEffect(() => {
@@ -249,17 +253,12 @@ export default function NotebookClient({ book }: { book: Book }) {
 
         {/* Book picker */}
         <div className="p-3 border-b border-gray-100 dark:border-gray-800 flex-shrink-0">
-          <select
-            ref={bookSelectRef}
-            aria-label="Book"
-            className="w-full text-xs border border-gray-200 dark:border-gray-700 rounded px-2 py-1.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 outline-none"
-            value={bookId}
-            onChange={e => handleBookChange(e.target.value)}
-          >
-            {BOOKS_INDEX.map(b => (
-              <option key={b.id} value={b.id}>{b.name}</option>
-            ))}
-          </select>
+          <BookPicker
+            bookId={bookId}
+            bookChapters={bookChapters}
+            onChange={handleBookChange}
+            selectRef={bookSelectRef}
+          />
         </div>
 
         {/* Verse numbers toggle */}
