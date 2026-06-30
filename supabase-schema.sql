@@ -42,11 +42,22 @@ create table if not exists passages (
   fetched_at timestamptz default now()
 );
 
+-- Moderation: one report per (note, reporter). Admins review pending rows.
+create table if not exists reports (
+  id uuid primary key default gen_random_uuid(),
+  note_id uuid references notes(id) on delete cascade not null,
+  reporter_id uuid references profiles(id) on delete set null,
+  reason text not null default '',
+  status text not null default 'pending',
+  created_at timestamptz default now()
+);
+
 -- Columns (add if missing on existing databases)
 
 alter table profiles add column if not exists preferred_translation text not null default 'ESV';
 alter table profiles add column if not exists notes_public_default boolean not null default true;
 alter table profiles add column if not exists theme_track_label text;
+alter table profiles add column if not exists is_admin boolean not null default false;
 alter table passages add column if not exists translation text not null default 'ESV';
 
 -- Constraints
@@ -61,6 +72,16 @@ alter table passages drop constraint if exists passages_book_id_ref_key;
 alter table passages drop constraint if exists passages_book_ref_translation_key;
 alter table passages add constraint passages_book_ref_translation_key
   unique (book_id, ref, translation);
+
+-- reports: one open report per (note, reporter); upsert refreshes an existing one
+alter table reports drop constraint if exists reports_note_id_reporter_id_key;
+alter table reports add constraint reports_note_id_reporter_id_key
+  unique (note_id, reporter_id);
+
+-- Indexes
+
+create index if not exists reports_status_created_at_idx on reports (status, created_at desc);
+create index if not exists reports_note_id_idx on reports (note_id);
 
 -- Trigger: auto-create profile on signup
 
@@ -85,6 +106,7 @@ alter table notes enable row level security;
 alter table comments enable row level security;
 alter table profiles enable row level security;
 alter table passages enable row level security;
+alter table reports enable row level security;
 
 -- Notes policies
 drop policy if exists "Users read own notes" on notes;
@@ -119,3 +141,10 @@ drop policy if exists "Service role inserts passages" on passages;
 
 create policy "Anyone reads passages" on passages for select using (true);
 create policy "Service role inserts passages" on passages for insert with check (true);
+
+-- Reports policies
+-- Reads and moderation actions go through the service role in the API, which
+-- bypasses RLS. Authenticated users may only file their own reports.
+drop policy if exists "Users file own reports" on reports;
+
+create policy "Users file own reports" on reports for insert with check (auth.uid() = reporter_id);

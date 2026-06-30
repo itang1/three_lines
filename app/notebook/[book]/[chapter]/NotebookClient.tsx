@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { BOOKS, TRACKS, getChapter } from '@/lib/data'
+import ReportButton from '@/components/ReportButton'
 import type { User } from '@supabase/supabase-js'
 
 type Mode = 'study' | 'community'
@@ -833,10 +834,9 @@ export default function NotebookClient() {
           </div>
         </div>
 
-        <div className="max-w-2xl mx-auto px-6 py-5">
-
-          {/* Mode toggle + track pills */}
-          <div className="flex items-center gap-3 mb-8 flex-wrap">
+        {/* Sticky controls bar */}
+        <div className="sticky top-[44px] z-10 bg-white dark:bg-gray-950 border-b border-gray-100 dark:border-gray-800">
+          <div className="max-w-2xl mx-auto px-6 py-2.5 flex items-center gap-3 flex-wrap">
             <div className="flex border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
               {(['study', 'community'] as Mode[]).map(m => (
                 <button
@@ -853,8 +853,7 @@ export default function NotebookClient() {
               ))}
             </div>
             {mode === 'community' && (
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">Show notes from:</span>
+              <>
                 <div className="flex border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
                   {(['book', 'all', 'top'] as const).map(s => (
                     <button
@@ -866,7 +865,7 @@ export default function NotebookClient() {
                           : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
                       }`}
                     >
-                      {s === 'book' ? book.name : s === 'all' ? 'All books' : 'Most discussed'}
+                      {s === 'book' ? 'This book' : s === 'all' ? 'Feed' : 'Top'}
                     </button>
                   ))}
                 </div>
@@ -883,9 +882,15 @@ export default function NotebookClient() {
                     Only with notes
                   </button>
                 )}
-              </div>
+              </>
             )}
-            <div className="flex gap-1.5 flex-wrap">
+          </div>
+        </div>
+
+        <div className="max-w-2xl mx-auto px-6 py-5">
+
+          {/* Track pills */}
+          <div className="flex gap-1.5 flex-wrap mb-8">
               {TRACKS.map(t => (
                 <button
                   key={t.id}
@@ -949,7 +954,6 @@ export default function NotebookClient() {
                 </button>
               )}
             </div>
-          </div>
 
           {/* All-books community feed */}
           {mode === 'community' && communityScope === 'all' && (
@@ -990,6 +994,11 @@ export default function NotebookClient() {
                           </button>
                         </div>
                         <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed ml-8">{note.content}</p>
+                        {user && note.user_id !== user.id && (
+                          <div className="ml-8 mt-2">
+                            <ReportButton noteId={note.id} />
+                          </div>
+                        )}
                       </div>
                     )
                   })}
@@ -1195,16 +1204,19 @@ export default function NotebookClient() {
                                   </span>
                                 </div>
                                 <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed ml-8 mb-2">{note.content}</p>
-                                <button
-                                  className="ml-8 text-[11px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                                  onClick={() => toggleThread(note.id)}
-                                >
-                                  {isOpen
-                                    ? 'Hide replies'
-                                    : noteReplies.length > 0
-                                      ? `${noteReplies.length} repl${noteReplies.length === 1 ? 'y' : 'ies'}`
-                                      : 'Reply'}
-                                </button>
+                                <div className="ml-8 flex items-center gap-3">
+                                  <button
+                                    className="text-[11px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                                    onClick={() => toggleThread(note.id)}
+                                  >
+                                    {isOpen
+                                      ? 'Hide replies'
+                                      : noteReplies.length > 0
+                                        ? `${noteReplies.length} repl${noteReplies.length === 1 ? 'y' : 'ies'}`
+                                        : 'Reply'}
+                                  </button>
+                                  {user && note.user_id !== user.id && <ReportButton noteId={note.id} />}
+                                </div>
                                 {isOpen && (
                                   <div className="ml-8 mt-3 pl-3 border-l border-gray-100 dark:border-gray-800">
                                     {noteReplies.map(r => (

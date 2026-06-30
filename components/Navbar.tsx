@@ -33,6 +33,7 @@ export default function Navbar() {
   const [user, setUser] = useState<User | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [displayName, setDisplayName] = useState<string | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [showNamePrompt, setShowNamePrompt] = useState(false)
   const [nameInput, setNameInput] = useState('')
   const [nameSaving, setNameSaving] = useState(false)
@@ -48,14 +49,15 @@ export default function Navbar() {
   }, [])
 
   useEffect(() => {
-    if (!user) { setDisplayName(null); return }
+    if (!user) { setDisplayName(null); setIsAdmin(false); return }
     supabase.from('profiles')
-      .select('display_name')
+      .select('display_name, is_admin')
       .eq('id', user.id)
       .single()
       .then(({ data }) => {
         if (data) {
           setDisplayName(data.display_name)
+          setIsAdmin(!!(data as { is_admin?: boolean }).is_admin)
           if (data.display_name === 'Anonymous') {
             setShowNamePrompt(true)
           }
@@ -106,6 +108,9 @@ export default function Navbar() {
             <Link href="/instructions"    className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100">Instructions</Link>
             <Link href="/about"           className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100">About</Link>
             <Link href="/contact"         className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100">Contact</Link>
+            {isAdmin && (
+              <Link href="/admin" className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100">Moderation</Link>
+            )}
 
             <button
               onClick={toggle}
@@ -167,6 +172,9 @@ export default function Navbar() {
             <Link href="/instructions"    className="text-sm text-gray-600 dark:text-gray-400" onClick={() => setMenuOpen(false)}>Instructions</Link>
             <Link href="/about"           className="text-sm text-gray-600 dark:text-gray-400" onClick={() => setMenuOpen(false)}>About</Link>
             <Link href="/contact"         className="text-sm text-gray-600 dark:text-gray-400" onClick={() => setMenuOpen(false)}>Contact</Link>
+            {isAdmin && (
+              <Link href="/admin" className="text-sm text-gray-600 dark:text-gray-400" onClick={() => setMenuOpen(false)}>Moderation</Link>
+            )}
             {user && (
               <>
                 <Link href="/profile" className="text-sm text-gray-600 dark:text-gray-400" onClick={() => setMenuOpen(false)}>Profile</Link>
