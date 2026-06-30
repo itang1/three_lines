@@ -80,6 +80,12 @@ export default function NotebookClient() {
   const [themeInput, setThemeInput] = useState('')
   const [editingTheme, setEditingTheme] = useState(false)
 
+  const [communityScope, setCommunityScope] = useState<'book' | 'all'>('book')
+  const [allNotes, setAllNotes]             = useState<CommunityNote[]>([])
+  const [allNotesOffset, setAllNotesOffset] = useState(0)
+  const [allNotesLoading, setAllNotesLoading] = useState(false)
+  const [allNotesHasMore, setAllNotesHasMore] = useState(false)
+
   const book = BOOKS.find(b => b.id === bookId) ?? BOOKS[0]
 
   // Auth — also loads preferred translation from profile
@@ -211,6 +217,11 @@ export default function NotebookClient() {
     return () => container.removeEventListener('scroll', onScroll)
   }, [bookId])
 
+  // Keep browser tab title in sync with the active chapter as the user scrolls
+  useEffect(() => {
+    document.title = `${book.name} ${activeChapter} — Three Lines`
+  }, [book.name, activeChapter])
+
   // Load which chapters have notes (progress dots)
   useEffect(() => {
     if (!user) return
@@ -266,9 +277,9 @@ export default function NotebookClient() {
       })
   }, [user, bookId])
 
-  // Load community notes for the entire book
+  // Load community notes for the current book
   useEffect(() => {
-    if (mode !== 'community') return
+    if (mode !== 'community' || communityScope !== 'book') return
     supabase.from('notes')
       .select('id, user_id, passage_ref, track_id, content, created_at, profiles(display_name)')
       .like('passage_ref', `${bookId}:%`)
@@ -276,7 +287,28 @@ export default function NotebookClient() {
       .neq('content', '')
       .order('created_at', { ascending: false })
       .then(({ data }) => { if (data) setCommunityNotes(data as unknown as CommunityNote[]) })
-  }, [mode, bookId])
+  }, [mode, bookId, communityScope])
+
+  // Load community notes across all books
+  useEffect(() => {
+    if (mode !== 'community' || communityScope !== 'all') return
+    setAllNotes([])
+    setAllNotesOffset(0)
+    setAllNotesHasMore(false)
+    setAllNotesLoading(true)
+    supabase.from('notes')
+      .select('id, user_id, passage_ref, track_id, content, created_at, profiles(display_name)')
+      .eq('is_public', true)
+      .neq('content', '')
+      .order('created_at', { ascending: false })
+      .range(0, 49)
+      .then(({ data }) => {
+        const results = (data ?? []) as unknown as CommunityNote[]
+        setAllNotes(results)
+        setAllNotesHasMore(results.length === 50)
+        setAllNotesLoading(false)
+      })
+  }, [mode, communityScope])
 
   const handleNoteChange = (passageRef: string, trackId: string, value: string) => {
     const key = `${passageRef}|${trackId}`
@@ -345,6 +377,31 @@ export default function NotebookClient() {
     if (!res.ok) return
     setReplyText(prev => ({ ...prev, [parentId]: '' }))
     loadReplies(parentId)
+  }
+
+  const loadMoreAllNotes = async () => {
+    const next = allNotesOffset + 50
+    setAllNotesOffset(next)
+    setAllNotesLoading(true)
+    const { data } = await supabase.from('notes')
+      .select('id, user_id, passage_ref, track_id, content, created_at, profiles(display_name)')
+      .eq('is_public', true)
+      .neq('content', '')
+      .order('created_at', { ascending: false })
+      .range(next, next + 49)
+    const results = (data ?? []) as unknown as CommunityNote[]
+    setAllNotes(prev => [...prev, ...results])
+    setAllNotesHasMore(results.length === 50)
+    setAllNotesLoading(false)
+  }
+
+  const goToPassage = (noteBookId: string, noteChapter: number) => {
+    setCommunityScope('book')
+    if (noteBookId === bookId) {
+      scrollToChapter(noteChapter)
+    } else {
+      router.push(`/notebook/${noteBookId}/${noteChapter}`)
+    }
   }
 
   const autoResize = (el: HTMLTextAreaElement) => {
@@ -766,6 +823,26 @@ export default function NotebookClient() {
                 </button>
               ))}
             </div>
+            {mode === 'community' && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">Show notes from:</span>
+                <div className="flex border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
+                  {(['book', 'all'] as const).map(s => (
+                    <button
+                      key={s}
+                      onClick={() => setCommunityScope(s)}
+                      className={`px-3 py-1.5 text-sm transition-colors ${
+                        communityScope === s
+                          ? 'bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-100'
+                          : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                      }`}
+                    >
+                      {s === 'book' ? book.name : 'All books'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="flex gap-1.5 flex-wrap">
               {TRACKS.map(t => (
                 <button
@@ -832,8 +909,64 @@ export default function NotebookClient() {
             </div>
           </div>
 
+          {/* All-books community feed */}
+          {mode === 'community' && communityScope === 'all' && (
+            <div className="space-y-3">
+              {allNotesLoading && allNotes.length === 0 ? (
+                <div className="text-sm text-gray-400 dark:text-gray-500 animate-pulse py-8">Loading…</div>
+              ) : allNotes.filter(n => activeTracks.has(n.track_id)).length === 0 ? (
+                <div className="text-sm text-gray-400 dark:text-gray-500 italic py-8">No community notes yet.</div>
+              ) : (
+                <>
+                  {allNotes.filter(n => activeTracks.has(n.track_id)).map(note => {
+                    const parts = note.passage_ref.split(':')
+                    const noteBookId = parts[0]
+                    const noteChapter = parseInt(parts[1]) || 1
+                    const noteBook    = BOOKS.find(b => b.id === noteBookId)
+                    const track = note.track_id === 'theme'
+                      ? { label: themeLabel || 'Theme', dot: THEME_DOT }
+                      : TRACKS.find(t => t.id === note.track_id)
+                    const initials = note.profiles?.display_name
+                      ?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() ?? '?'
+                    return (
+                      <div key={note.id} className="border border-gray-100 dark:border-gray-800 rounded-lg p-4 bg-white dark:bg-gray-900">
+                        <div className="flex items-center gap-2 mb-2.5 flex-wrap">
+                          <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-[10px] font-semibold text-gray-500 dark:text-gray-400 flex-shrink-0">
+                            {initials}
+                          </div>
+                          <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{note.profiles?.display_name}</span>
+                          {track && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: track.dot + '18', color: track.dot }}>
+                              {track.label}
+                            </span>
+                          )}
+                          <button
+                            onClick={() => goToPassage(noteBookId, noteChapter)}
+                            className="text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 ml-auto"
+                          >
+                            {noteBook?.name ?? noteBookId} {parts[1]}:{parts.slice(2).join(':')} →
+                          </button>
+                        </div>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed ml-8">{note.content}</p>
+                      </div>
+                    )
+                  })}
+                  {allNotesHasMore && (
+                    <button
+                      onClick={loadMoreAllNotes}
+                      disabled={allNotesLoading}
+                      className="w-full py-2.5 text-sm text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-40"
+                    >
+                      {allNotesLoading ? 'Loading…' : 'Load more'}
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
           {/* All chapters — continuous */}
-          {book.chapters.map(ch => {
+          {!(mode === 'community' && communityScope === 'all') && book.chapters.map(ch => {
             const chapterData = getChapter(bookId, ch.ch)
             if (!chapterData) return null
 
