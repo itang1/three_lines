@@ -52,6 +52,17 @@ create table if not exists reports (
   created_at timestamptz default now()
 );
 
+-- In-app notifications. One row per reply event; created by the service role in
+-- /api/comment so no insert RLS policy is needed on the client side.
+create table if not exists notifications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references profiles(id) on delete cascade not null,
+  comment_id uuid references comments(id) on delete cascade not null,
+  passage_ref text not null,
+  read boolean not null default false,
+  created_at timestamptz default now()
+);
+
 -- Bookmarks: one row per (user, passage). Lightweight alternative to writing a note.
 create table if not exists bookmarks (
   id uuid primary key default gen_random_uuid(),
@@ -179,12 +190,12 @@ $$ language sql stable security definer;
 create or replace function handle_new_user()
 returns trigger as $$
 begin
-  insert into profiles (id, display_name, notes_public_default)
+  insert into public.profiles (id, display_name, notes_public_default)
   values (new.id, coalesce(new.raw_user_meta_data->>'full_name', 'Anonymous'), true)
   on conflict (id) do nothing;
   return new;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public;
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
@@ -198,6 +209,7 @@ alter table comments enable row level security;
 alter table profiles enable row level security;
 alter table passages enable row level security;
 alter table reports enable row level security;
+alter table notifications enable row level security;
 alter table bookmarks enable row level security;
 -- No policies: only the service role and the security-definer RPC touch this table.
 alter table rate_limits enable row level security;
@@ -245,6 +257,13 @@ create policy "Anyone reads passages" on passages for select using (true);
 drop policy if exists "Users file own reports" on reports;
 
 create policy "Users file own reports" on reports for insert with check (auth.uid() = reporter_id);
+
+-- Notifications policies (no insert — service role creates rows via the API)
+drop policy if exists "Users read own notifications" on notifications;
+drop policy if exists "Users update own notifications" on notifications;
+
+create policy "Users read own notifications" on notifications for select using (auth.uid() = user_id);
+create policy "Users update own notifications" on notifications for update using (auth.uid() = user_id);
 
 -- Bookmarks policies
 drop policy if exists "Users read own bookmarks" on bookmarks;

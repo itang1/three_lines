@@ -37,21 +37,43 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
   }
 
-  const { error: insertError } = await supabase.from('comments').insert({
+  const { data: inserted, error: insertError } = await supabase.from('comments').insert({
     user_id: user.id,
     passage_ref,
     track_id,
     content: content.trim(),
     parent_id: parent_id ?? null,
-  })
+  }).select('id').single()
 
   if (insertError) return NextResponse.json({ error: 'Insert failed' }, { status: 500 })
 
-  if (parent_id) {
+  if (parent_id && inserted) {
+    createInAppNotification(parent_id, user.id, passage_ref, inserted.id).catch(console.error)
     notifyReplyAuthor(parent_id, user.id, passage_ref, content.trim()).catch(console.error)
   }
 
   return NextResponse.json({ ok: true })
+}
+
+async function createInAppNotification(
+  parentNoteId: string,
+  replierId: string,
+  passageRef: string,
+  commentId: string,
+) {
+  // parent_id is the ID of a note in the `notes` table
+  const { data: note } = await supabase.from('notes')
+    .select('user_id')
+    .eq('id', parentNoteId)
+    .single()
+
+  if (!note || note.user_id === replierId) return
+
+  await supabase.from('notifications').insert({
+    user_id: note.user_id,
+    comment_id: commentId,
+    passage_ref: passageRef,
+  })
 }
 
 async function notifyReplyAuthor(
