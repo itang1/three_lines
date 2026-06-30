@@ -79,6 +79,13 @@ export default function InstructionsPage() {
         </p>
       </section>
 
+      <section className="mb-10">
+        <h2 className="text-xs font-semibold tracking-widest uppercase text-gray-400 dark:text-gray-500 mb-4">Keyboard shortcuts</h2>
+        <p className="text-base text-gray-600 dark:text-gray-400 leading-relaxed">
+          While reading, press <kbd className="px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-xs font-mono">?</kbd> to see the full list of keyboard shortcuts for moving between chapters, switching translations, and jumping to the book selector.
+        </p>
+      </section>
+
     </div>
   )
 }

@@ -16,6 +16,7 @@ import CommunityFeed from './components/CommunityFeed'
 import TopPassages from './components/TopPassages'
 import StudyLines from './components/StudyLines'
 import CommunityThread from './components/CommunityThread'
+import ShortcutsHelp from './components/ShortcutsHelp'
 
 // The active book's full data is resolved server-side (see page.tsx) and passed
 // in as a prop, so the browser never loads the whole-Bible dataset.
@@ -63,7 +64,7 @@ export default function NotebookClient({ book }: { book: Book }) {
     chapterRefs, scrollContainer, bookSelectRef,
   } = useChapterScroll({ book, urlChapter, setTranslation })
 
-  const { passageTexts, loadingPassages } = usePassages({
+  const { passageTexts, loadingPassages, retryChunk } = usePassages({
     book, translation, showVerseNumbers, chapterRefs,
   })
 
@@ -475,6 +476,7 @@ export default function NotebookClient({ book }: { book: Book }) {
             >☰</button>
             <h2 className="text-base font-serif font-medium text-gray-900 dark:text-gray-100">{book.name}</h2>
             <span className="text-xs text-gray-400 tracking-wider uppercase flex-1">Chapter {activeChapter}</span>
+            <ShortcutsHelp />
             <div className="flex">
               <button
                 onClick={() => activeChapter > 1 && scrollToChapter(activeChapter - 1)}
@@ -692,7 +694,15 @@ export default function NotebookClient({ book }: { book: Book }) {
                         ) : text ? (
                           <p className="text-base font-serif leading-relaxed text-gray-800 dark:text-gray-200 whitespace-pre-line">{text}</p>
                         ) : (
-                          <p className="text-xs text-gray-400 italic">Could not load passage. Check your API key.</p>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs text-gray-400 italic">Could not load passage.</span>
+                            <button
+                              onClick={() => retryChunk(ch.ch, chunk.esvRef)}
+                              className="text-xs text-gray-500 dark:text-gray-400 underline underline-offset-2 hover:text-gray-800 dark:hover:text-gray-200"
+                            >
+                              Retry
+                            </button>
+                          </div>
                         )}
                       </div>
 

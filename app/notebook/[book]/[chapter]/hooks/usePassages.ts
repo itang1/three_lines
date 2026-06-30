@@ -13,6 +13,7 @@ type Result = {
   // passage text keyed by "esvRef|translation|vn"
   passageTexts: Record<string, string>
   loadingPassages: Set<string>
+  retryChunk: (chNum: number, esvRef: string) => void
 }
 
 // Lazy-loads passage text per chapter chunk as sections scroll into view,
@@ -42,6 +43,14 @@ export function usePassages({ book, translation, showVerseNumbers, chapterRefs }
       })
   }, [bookId, translation, showVerseNumbers])
 
+  // Drop the dedupe entry for a failed chunk and fetch it again. Used by the
+  // retry affordance when a passage could not be loaded.
+  const retryChunk = useCallback((chNum: number, esvRef: string) => {
+    const key = `${esvRef}|${translation}|${showVerseNumbers ? '1' : '0'}`
+    requestedChunks.current.delete(key)
+    fetchChunk(chNum, esvRef)
+  }, [fetchChunk, translation, showVerseNumbers])
+
   // Reset cache on book change, and on translation / verse-number pref changes
   useEffect(() => {
     requestedChunks.current.clear()
@@ -65,5 +74,5 @@ export function usePassages({ book, translation, showVerseNumbers, chapterRefs }
     return () => observer.disconnect()
   }, [bookId, fetchChunk])
 
-  return { passageTexts, loadingPassages }
+  return { passageTexts, loadingPassages, retryChunk }
 }
