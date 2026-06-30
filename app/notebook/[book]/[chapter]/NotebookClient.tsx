@@ -13,7 +13,7 @@ type CommunityNote = {
   passage_ref: string
   track_id: string
   content: string
-  created_at: string
+  updated_at: string
   profiles: { display_name: string }
 }
 
@@ -80,11 +80,14 @@ export default function NotebookClient() {
   const [themeInput, setThemeInput] = useState('')
   const [editingTheme, setEditingTheme] = useState(false)
 
-  const [communityScope, setCommunityScope] = useState<'book' | 'all'>('book')
+  const [communityScope, setCommunityScope] = useState<'book' | 'all' | 'top'>('book')
   const [allNotes, setAllNotes]             = useState<CommunityNote[]>([])
   const [allNotesOffset, setAllNotesOffset] = useState(0)
   const [allNotesLoading, setAllNotesLoading] = useState(false)
   const [allNotesHasMore, setAllNotesHasMore] = useState(false)
+  const [topPassages, setTopPassages] = useState<Array<{ passage_ref: string; notes: number; lines: number }>>([])
+  const [topPassagesLoading, setTopPassagesLoading] = useState(false)
+  const [filterHasNotes, setFilterHasNotes] = useState(false)
 
   const book = BOOKS.find(b => b.id === bookId) ?? BOOKS[0]
 
@@ -281,11 +284,11 @@ export default function NotebookClient() {
   useEffect(() => {
     if (mode !== 'community' || communityScope !== 'book') return
     supabase.from('notes')
-      .select('id, user_id, passage_ref, track_id, content, created_at, profiles(display_name)')
+      .select('id, user_id, passage_ref, track_id, content, updated_at, profiles(display_name)')
       .like('passage_ref', `${bookId}:%`)
       .eq('is_public', true)
       .neq('content', '')
-      .order('created_at', { ascending: false })
+      .order('updated_at', { ascending: false })
       .then(({ data }) => { if (data) setCommunityNotes(data as unknown as CommunityNote[]) })
   }, [mode, bookId, communityScope])
 
@@ -297,16 +300,42 @@ export default function NotebookClient() {
     setAllNotesHasMore(false)
     setAllNotesLoading(true)
     supabase.from('notes')
-      .select('id, user_id, passage_ref, track_id, content, created_at, profiles(display_name)')
+      .select('id, user_id, passage_ref, track_id, content, updated_at, profiles(display_name)')
       .eq('is_public', true)
       .neq('content', '')
-      .order('created_at', { ascending: false })
+      .order('updated_at', { ascending: false })
       .range(0, 49)
       .then(({ data }) => {
         const results = (data ?? []) as unknown as CommunityNote[]
         setAllNotes(results)
         setAllNotesHasMore(results.length === 50)
         setAllNotesLoading(false)
+      })
+  }, [mode, communityScope])
+
+  // Load most-discussed passages
+  useEffect(() => {
+    if (mode !== 'community' || communityScope !== 'top') return
+    setTopPassages([])
+    setTopPassagesLoading(true)
+    supabase.from('notes')
+      .select('passage_ref, user_id')
+      .eq('is_public', true)
+      .neq('content', '')
+      .then(({ data }) => {
+        const writers: Record<string, Set<string>> = {}
+        const lines: Record<string, number> = {}
+        ;(data ?? []).forEach(n => {
+          if (!writers[n.passage_ref]) writers[n.passage_ref] = new Set()
+          writers[n.passage_ref].add(n.user_id)
+          lines[n.passage_ref] = (lines[n.passage_ref] ?? 0) + 1
+        })
+        const sorted = Object.keys(writers)
+          .map(passage_ref => ({ passage_ref, notes: writers[passage_ref].size, lines: lines[passage_ref] }))
+          .sort((a, b) => b.notes - a.notes || b.lines - a.lines)
+          .slice(0, 30)
+        setTopPassages(sorted)
+        setTopPassagesLoading(false)
       })
   }, [mode, communityScope])
 
@@ -384,10 +413,10 @@ export default function NotebookClient() {
     setAllNotesOffset(next)
     setAllNotesLoading(true)
     const { data } = await supabase.from('notes')
-      .select('id, user_id, passage_ref, track_id, content, created_at, profiles(display_name)')
+      .select('id, user_id, passage_ref, track_id, content, updated_at, profiles(display_name)')
       .eq('is_public', true)
       .neq('content', '')
-      .order('created_at', { ascending: false })
+      .order('updated_at', { ascending: false })
       .range(next, next + 49)
     const results = (data ?? []) as unknown as CommunityNote[]
     setAllNotes(prev => [...prev, ...results])
@@ -824,10 +853,10 @@ export default function NotebookClient() {
               ))}
             </div>
             {mode === 'community' && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">Show notes from:</span>
                 <div className="flex border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
-                  {(['book', 'all'] as const).map(s => (
+                  {(['book', 'all', 'top'] as const).map(s => (
                     <button
                       key={s}
                       onClick={() => setCommunityScope(s)}
@@ -837,10 +866,23 @@ export default function NotebookClient() {
                           : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
                       }`}
                     >
-                      {s === 'book' ? book.name : 'All books'}
+                      {s === 'book' ? book.name : s === 'all' ? 'All books' : 'Most discussed'}
                     </button>
                   ))}
                 </div>
+                {communityScope === 'book' && (
+                  <button
+                    onClick={() => setFilterHasNotes(v => !v)}
+                    aria-pressed={filterHasNotes}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md border transition-colors ${
+                      filterHasNotes
+                        ? 'bg-gray-100 border-gray-300 text-gray-900 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100'
+                        : 'border-gray-200 dark:border-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                    }`}
+                  >
+                    Only with notes
+                  </button>
+                )}
               </div>
             )}
             <div className="flex gap-1.5 flex-wrap">
@@ -965,10 +1007,56 @@ export default function NotebookClient() {
             </div>
           )}
 
+          {/* Most Discussed view */}
+          {mode === 'community' && communityScope === 'top' && (
+            <div className="space-y-2">
+              {topPassagesLoading ? (
+                <div className="text-sm text-gray-400 dark:text-gray-500 animate-pulse py-8">Loading…</div>
+              ) : topPassages.length === 0 ? (
+                <div className="text-sm text-gray-400 dark:text-gray-500 italic py-8">No community notes yet.</div>
+              ) : topPassages.map(({ passage_ref, notes, lines }, idx) => {
+                const parts = passage_ref.split(':')
+                const tpBookId = parts[0]
+                const tpChapter = parseInt(parts[1]) || 1
+                const chunkRef = parts.slice(2).join(':')
+                const chunk = getChapter(tpBookId, tpChapter)?.chunks.find(c => c.ref === chunkRef)
+                const tpBook = BOOKS.find(b => b.id === tpBookId)
+                const displayRef = chunk?.esvRef ?? `${tpBook?.name ?? tpBookId} ${parts.slice(1).join(':')}`
+                return (
+                  <button
+                    key={passage_ref}
+                    onClick={() => goToPassage(tpBookId, tpChapter)}
+                    className="w-full text-left flex items-center gap-3 px-4 py-3 border border-gray-100 dark:border-gray-800 rounded-lg bg-white dark:bg-gray-900 hover:border-gray-300 dark:hover:border-gray-600 transition-colors group"
+                  >
+                    <span className="text-xs font-mono text-gray-300 dark:text-gray-600 w-5 text-right flex-shrink-0">
+                      {idx + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-gray-800 dark:text-gray-200 group-hover:text-gray-900 dark:group-hover:text-gray-100">
+                        {displayRef}
+                      </div>
+                      {chunk?.pericope && (
+                        <div className="text-xs text-gray-400 dark:text-gray-500">{chunk.pericope}</div>
+                      )}
+                    </div>
+                    <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0 text-right">
+                      <span className="font-medium text-gray-600 dark:text-gray-300">{notes}</span> {notes === 1 ? 'note' : 'notes'}
+                      <span className="mx-1 opacity-40">·</span>
+                      <span className="font-medium text-gray-600 dark:text-gray-300">{lines}</span> {lines === 1 ? 'line' : 'lines'}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
           {/* All chapters — continuous */}
-          {!(mode === 'community' && communityScope === 'all') && book.chapters.map(ch => {
+          {!(mode === 'community' && communityScope !== 'book') && book.chapters.map(ch => {
             const chapterData = getChapter(bookId, ch.ch)
             if (!chapterData) return null
+            if (filterHasNotes && mode === 'community' && !chapterData.chunks.some(chunk =>
+              filteredCommunityNotes.some(n => n.passage_ref === passageKey(bookId, ch.ch, chunk.ref))
+            )) return null
 
             return (
               <div
@@ -985,7 +1073,11 @@ export default function NotebookClient() {
                   Chapter {ch.ch}
                 </h3>
 
-                {chapterData.chunks.map(chunk => {
+                {chapterData.chunks.filter(chunk => {
+                  if (!filterHasNotes || mode !== 'community') return true
+                  const pKey = passageKey(bookId, ch.ch, chunk.ref)
+                  return filteredCommunityNotes.some(n => n.passage_ref === pKey)
+                }).map(chunk => {
                   const pKey                = passageKey(bookId, ch.ch, chunk.ref)
                   const cacheKey            = `${chunk.esvRef}|${translation}|${showVerseNumbers ? '1' : '0'}`
                   const text                = passageTexts[cacheKey]
@@ -1099,7 +1191,7 @@ export default function NotebookClient() {
                                     </span>
                                   )}
                                   <span className="text-[10px] text-gray-400 ml-auto">
-                                    {new Date(note.created_at).toLocaleDateString()}
+                                    {new Date(note.updated_at).toLocaleDateString()}
                                   </span>
                                 </div>
                                 <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed ml-8 mb-2">{note.content}</p>
