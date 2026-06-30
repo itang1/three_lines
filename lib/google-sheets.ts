@@ -71,8 +71,21 @@ async function getAccessToken(): Promise<string | null> {
   return _cached.token
 }
 
-// Append one row to the named sheet tab. Values are written left-to-right
-// starting at column A, at the first empty row.
+const HEADERS: Record<'Feedback' | 'Visits', string[]> = {
+  Feedback: ['Timestamp', 'Type', 'Email', 'What worked', 'What could be improved'],
+  Visits:   ['Timestamp', 'IP', 'Page', 'Country', 'City', 'Region', 'Referrer', 'User Agent'],
+}
+
+async function sheetIsEmpty(sheet: string, token: string): Promise<boolean> {
+  const range = encodeURIComponent(`${sheet}!A1`)
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}`
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+  if (!res.ok) return false
+  const json = await res.json() as { values?: unknown[][] }
+  return !json.values || json.values.length === 0
+}
+
+// Append one row to the named sheet tab. Writes a header row first if the sheet is empty.
 export async function appendRow(
   sheet: 'Feedback' | 'Visits',
   values: (string | number | null)[],
@@ -81,17 +94,22 @@ export async function appendRow(
   if (!token) return
 
   const range = encodeURIComponent(`${sheet}!A1`)
-  const url = [
+  const appendUrl = [
     `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}`,
     `/values/${range}:append`,
     `?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
   ].join('')
 
-  const res = await fetch(url, {
+  const rows: (string | number | null)[][] = []
+  if (await sheetIsEmpty(sheet, token)) rows.push(HEADERS[sheet])
+  rows.push(values)
+
+  const res = await fetch(appendUrl, {
     method:  'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ values: [values] }),
+    body:    JSON.stringify({ values: rows }),
   })
 
   if (!res.ok) console.error('[sheets] append failed:', await res.text())
+  else console.log('[sheets] wrote', rows.length, 'row(s) to', sheet)
 }

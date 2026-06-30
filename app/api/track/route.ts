@@ -6,7 +6,8 @@ export async function POST(req: Request) {
   // One tracked visit per IP per 30 minutes to prevent floods
   const ip = clientIp(req)
   if (!(await rateLimit(`track:${ip}`, 1, 30 * 60))) {
-    return NextResponse.json({ ok: true }) // silently swallow — not an error for the client
+    console.log('[track] rate-limited, skipping:', ip)
+    return NextResponse.json({ ok: true })
   }
 
   const body = await req.json()
