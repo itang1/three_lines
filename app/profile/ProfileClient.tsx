@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { TRACKS, getBookMeta } from '@/lib/books-index'
 import { buildPlainText, buildMarkdown, downloadFile } from '@/lib/exportNotes'
 
 type Stats = {
@@ -9,6 +10,23 @@ type Stats = {
   lineCount: number
   bookCount: number
   chapterCount: number
+}
+
+type RecentNote = {
+  passage_ref: string
+  track_id: string
+  content: string
+  updated_at: string | null
+}
+
+function relativeDate(iso: string | null): string {
+  if (!iso) return ''
+  const diff = Date.now() - new Date(iso).getTime()
+  const days = Math.floor(diff / 86400000)
+  if (days === 0) return 'today'
+  if (days === 1) return 'yesterday'
+  if (days < 30) return `${days} days ago`
+  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
 export default function ProfileClient() {
@@ -22,6 +40,7 @@ export default function ProfileClient() {
   const [nameSaved, setNameSaved] = useState(false)
   const [notesPublicDefault, setNotesPublicDefault] = useState(true)
   const [stats, setStats] = useState<Stats | null>(null)
+  const [recentNotes, setRecentNotes] = useState<RecentNote[]>([])
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
@@ -32,7 +51,7 @@ export default function ProfileClient() {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.replace('/login'); return }
 
-      const [{ data: profile }, { data: notes }] = await Promise.all([
+      const [{ data: profile }, { data: notes }, { data: recent }] = await Promise.all([
         supabase.from('profiles')
           .select('display_name, notes_public_default')
           .eq('id', user.id)
@@ -41,6 +60,12 @@ export default function ProfileClient() {
           .select('passage_ref')
           .eq('user_id', user.id)
           .neq('content', ''),
+        supabase.from('notes')
+          .select('passage_ref, track_id, content, updated_at')
+          .eq('user_id', user.id)
+          .neq('content', '')
+          .order('updated_at', { ascending: false })
+          .limit(50),
       ])
 
       if (profile) {
@@ -50,11 +75,23 @@ export default function ProfileClient() {
       }
 
       if (notes) {
-        // One note per chunk (passage_ref); lines are the individual tracks within.
         const passages = new Set(notes.map(n => n.passage_ref))
         const books = new Set(notes.map(n => n.passage_ref.split(':')[0]))
         const chapters = new Set(notes.map(n => n.passage_ref.split(':').slice(0, 2).join(':')))
         setStats({ noteCount: passages.size, lineCount: notes.length, bookCount: books.size, chapterCount: chapters.size })
+      }
+
+      if (recent) {
+        const seen = new Set<string>()
+        const deduped: RecentNote[] = []
+        for (const n of recent) {
+          if (!seen.has(n.passage_ref)) {
+            seen.add(n.passage_ref)
+            deduped.push(n)
+            if (deduped.length === 15) break
+          }
+        }
+        setRecentNotes(deduped)
       }
 
       setLoading(false)
@@ -252,7 +289,7 @@ export default function ProfileClient() {
       </section>
 
       {/* Reading stats */}
-      <section className="mb-12">
+      <section className="mb-10">
         <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Reading stats</h2>
         {stats ? (
           <div className="flex gap-8 text-sm">
@@ -277,6 +314,50 @@ export default function ProfileClient() {
           <p className="text-sm text-gray-400 dark:text-gray-500">No notes yet.</p>
         )}
       </section>
+
+      {/* Recent notes */}
+      {recentNotes.length > 0 && (
+        <section className="mb-12">
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Recent notes</h2>
+          <div className="border border-gray-100 dark:border-gray-800 rounded-md divide-y divide-gray-100 dark:divide-gray-800">
+            {recentNotes.map(note => {
+              const parts = note.passage_ref.split(':')
+              const bookMeta = getBookMeta(parts[0])
+              const chapter = parts[1]
+              const chunkRef = parts.slice(2).join(':')
+              const track = TRACKS.find(t => t.id === note.track_id)
+              const href = `/notebook/${parts[0]}/${chapter}`
+              const snippet = note.content.replace(/\s+/g, ' ').trim().slice(0, 100)
+
+              return (
+                <a
+                  key={`${note.passage_ref}|${note.track_id}`}
+                  href={href}
+                  className="block px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors"
+                >
+                  <div className="flex items-baseline justify-between gap-2 mb-1">
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-200">
+                      {bookMeta?.name ?? parts[0]} {chapter}:{chunkRef}
+                    </span>
+                    <span className="text-[10px] text-gray-400 dark:text-gray-500 flex-shrink-0">
+                      {relativeDate(note.updated_at)}
+                    </span>
+                  </div>
+                  {track && (
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: track.dot }} />
+                      <span className="text-[10px] text-gray-400 dark:text-gray-500">{track.label}</span>
+                    </div>
+                  )}
+                  <p className="text-xs text-gray-500 dark:text-gray-400 leading-snug line-clamp-2">
+                    {snippet}{note.content.length > 100 ? '…' : ''}
+                  </p>
+                </a>
+              )
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Export */}
       <section className="mb-12">
