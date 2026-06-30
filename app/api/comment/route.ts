@@ -80,7 +80,7 @@ async function notifyReplyAuthor(
   // passage_ref is "book:chapter:chunkRef"; the route is /notebook/[book]/[chapter].
   // Append the chapter anchor so the link lands on the right section in long books.
   const [bookId, chapter] = passageRef.split(':')
-  const url = `https://threelines.app/notebook/${bookId}/${chapter}#chapter-${chapter}`
+  const url = `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://three-lines-sepia.vercel.app'}/notebook/${bookId}/${chapter}#chapter-${chapter}`
 
   await fetch('https://api.resend.com/emails', {
     method: 'POST',

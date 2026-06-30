@@ -2,7 +2,7 @@ import type { MetadataRoute } from 'next'
 import { BOOKS } from '@/lib/data'
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://threelines.app'
+  const base = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://three-lines-sepia.vercel.app'
 
   const staticPages: MetadataRoute.Sitemap = [
     { url: base, changeFrequency: 'monthly', priority: 1 },
