@@ -52,6 +52,15 @@ create table if not exists reports (
   created_at timestamptz default now()
 );
 
+-- Bookmarks: one row per (user, passage). Lightweight alternative to writing a note.
+create table if not exists bookmarks (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references profiles(id) on delete cascade not null,
+  passage_ref text not null,
+  created_at timestamptz default now(),
+  unique (user_id, passage_ref)
+);
+
 -- Shared fixed-window rate-limit counters. Survives serverless cold starts,
 -- unlike an in-memory Map. Keyed like "contact:<ip>" or "passage:<ip>".
 create table if not exists rate_limits (
@@ -189,6 +198,7 @@ alter table comments enable row level security;
 alter table profiles enable row level security;
 alter table passages enable row level security;
 alter table reports enable row level security;
+alter table bookmarks enable row level security;
 -- No policies: only the service role and the security-definer RPC touch this table.
 alter table rate_limits enable row level security;
 
@@ -235,3 +245,12 @@ create policy "Anyone reads passages" on passages for select using (true);
 drop policy if exists "Users file own reports" on reports;
 
 create policy "Users file own reports" on reports for insert with check (auth.uid() = reporter_id);
+
+-- Bookmarks policies
+drop policy if exists "Users read own bookmarks" on bookmarks;
+drop policy if exists "Users insert own bookmarks" on bookmarks;
+drop policy if exists "Users delete own bookmarks" on bookmarks;
+
+create policy "Users read own bookmarks" on bookmarks for select using (auth.uid() = user_id);
+create policy "Users insert own bookmarks" on bookmarks for insert with check (auth.uid() = user_id);
+create policy "Users delete own bookmarks" on bookmarks for delete using (auth.uid() = user_id);

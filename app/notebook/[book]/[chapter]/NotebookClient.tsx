@@ -13,6 +13,7 @@ import { usePassages } from './hooks/usePassages'
 import { useNotes } from './hooks/useNotes'
 import { useCommunity } from './hooks/useCommunity'
 import { useNoteSearch } from './hooks/useNoteSearch'
+import { useBookmarks } from './hooks/useBookmarks'
 import CommunityFeed from './components/CommunityFeed'
 import TopPassages from './components/TopPassages'
 import StudyLines from './components/StudyLines'
@@ -83,6 +84,8 @@ export default function NotebookClient({ book }: { book: Book }) {
   } = useCommunity({ mode, bookId, communityScope, supabase })
 
   const { searchQuery, setSearchQuery, searchResults, searchLoading } = useNoteSearch({ user, supabase })
+
+  const { bookmarks, bookmarkedChapters, toggleBookmark } = useBookmarks({ user, bookId, supabase })
 
   // Load profile preferences once the user is known
   useEffect(() => {
@@ -297,11 +300,14 @@ export default function NotebookClient({ book }: { book: Book }) {
             book={book}
             activeChapter={activeChapter}
             chaptersWithNotesLive={chaptersWithNotesLive}
+            bookmarks={bookmarks}
+            bookmarkedChapters={bookmarkedChapters}
             passageTexts={passageTexts}
             translation={translation}
             showVerseNumbers={showVerseNumbers}
             goToResult={goToResult}
             scrollToChapter={scrollToChapter}
+            scrollToPassage={scrollToPassage}
           />
         </div>
 
@@ -475,9 +481,25 @@ export default function NotebookClient({ book }: { book: Book }) {
                           <span className="text-xs font-medium tracking-wider text-gray-400">
                             {book.name} {chunk.ref}
                           </span>
-                          {chunk.pericope && (
-                            <span className="text-[10px] text-gray-400 italic ml-2">{chunk.pericope}</span>
-                          )}
+                          <div className="flex items-center gap-2 ml-2">
+                            {chunk.pericope && (
+                              <span className="text-[10px] text-gray-400 italic">{chunk.pericope}</span>
+                            )}
+                            <button
+                              onClick={() => toggleBookmark(pKey)}
+                              aria-label={bookmarks.has(pKey) ? `Remove bookmark for ${book.name} ${chunk.ref}` : `Bookmark ${book.name} ${chunk.ref}`}
+                              title={bookmarks.has(pKey) ? 'Remove bookmark' : 'Bookmark this passage'}
+                              className={`flex-shrink-0 transition-colors ${
+                                bookmarks.has(pKey)
+                                  ? 'text-amber-500 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300'
+                                  : 'text-gray-200 hover:text-gray-400 dark:text-gray-700 dark:hover:text-gray-500'
+                              }`}
+                            >
+                              <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill={bookmarks.has(pKey) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
                         {isLoading ? (
                           <div className="h-16 flex items-center">

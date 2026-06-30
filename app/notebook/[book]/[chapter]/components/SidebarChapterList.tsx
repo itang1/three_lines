@@ -11,18 +11,30 @@ type Props = {
   book: Book
   activeChapter: number
   chaptersWithNotesLive: Set<number>
+  bookmarks: Set<string>
+  bookmarkedChapters: Set<number>
   passageTexts: Record<string, string>
   translation: string
   showVerseNumbers: boolean
   goToResult: (passageRef: string) => void
   scrollToChapter: (ch: number) => void
+  scrollToPassage: (passageRef: string) => boolean
+}
+
+function BookmarkRibbon({ filled }: { filled: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" className="w-3 h-3 flex-shrink-0" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+    </svg>
+  )
 }
 
 export default function SidebarChapterList({
   searchQuery, searchLoading, searchResults, user,
   book, activeChapter, chaptersWithNotesLive,
+  bookmarks, bookmarkedChapters,
   passageTexts, translation, showVerseNumbers,
-  goToResult, scrollToChapter,
+  goToResult, scrollToChapter, scrollToPassage,
 }: Props) {
   if (searchQuery.trim()) {
     if (searchLoading) {
@@ -73,11 +85,43 @@ export default function SidebarChapterList({
     )
   }
 
+  // Bookmarks for this book, sorted by chapter then passage ref
+  const bookmarkList = Array.from(bookmarks).sort()
+
   return (
     <>
+      {bookmarkList.length > 0 && (
+        <div className="border-b border-gray-100 dark:border-gray-800">
+          <div className="px-3 pt-2.5 pb-1 flex items-center gap-1.5">
+            <BookmarkRibbon filled />
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+              Bookmarks
+            </span>
+          </div>
+          {bookmarkList.map(passageRef => {
+            const parts = passageRef.split(':')
+            const chNum = parts[1]
+            const verseRef = parts.slice(2).join(':')
+            return (
+              <button
+                key={passageRef}
+                onClick={() => scrollToPassage(passageRef)}
+                className="w-full text-left px-3 py-1.5 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors flex items-center gap-2"
+              >
+                <BookmarkRibbon filled />
+                <span className="text-[10px] text-gray-700 dark:text-gray-300 truncate">
+                  Ch {chNum}{verseRef ? ` · ${verseRef}` : ''}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
       {book.chapters.map(ch => {
         const isActive = activeChapter === ch.ch
         const hasNotes = chaptersWithNotesLive.has(ch.ch)
+        const hasBookmark = bookmarkedChapters.has(ch.ch)
         const firstChunk = ch.chunks[0]
         const cacheKey = firstChunk
           ? `${firstChunk.esvRef}|${translation}|${showVerseNumbers ? '1' : '0'}`
@@ -99,11 +143,16 @@ export default function SidebarChapterList({
             <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5 transition-colors ${
               hasNotes ? 'bg-gray-400 dark:bg-gray-500' : 'bg-gray-200 dark:bg-gray-700'
             }`} />
-            <div className="min-w-0">
-              <div className={`text-xs font-medium leading-tight mb-0.5 ${
+            <div className="min-w-0 flex-1">
+              <div className={`text-xs font-medium leading-tight mb-0.5 flex items-center gap-1.5 ${
                 isActive ? 'text-violet-900 dark:text-violet-300' : 'text-gray-700 dark:text-gray-300'
               }`}>
                 Chapter {ch.ch}
+                {hasBookmark && (
+                  <span className="text-amber-500 dark:text-amber-400">
+                    <BookmarkRibbon filled />
+                  </span>
+                )}
               </div>
               <div className="text-[10px] text-gray-400 dark:text-gray-500 leading-snug line-clamp-2">
                 {subtitle}

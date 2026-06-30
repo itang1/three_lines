@@ -198,6 +198,35 @@ export type Database = {
           },
         ]
       }
+      bookmarks: {
+        Row: {
+          id: string
+          user_id: string
+          passage_ref: string
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          passage_ref: string
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          passage_ref?: string
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'bookmarks_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       rate_limits: {
         Row: {
           id: string

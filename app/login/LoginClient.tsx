@@ -10,7 +10,7 @@ export default function LoginClient() {
   const signInWithGoogle = async () => {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${location.origin}/notebook` }
+      options: { redirectTo: `${location.origin}/auth/callback` }
     })
   }
 
