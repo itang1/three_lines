@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { useUser } from '@/lib/useUser'
-import { BOOKS_INDEX, TRACKS, getBookMeta, type Book } from '@/lib/books-index'
+import { BOOKS_INDEX, TRACKS, type Book } from '@/lib/books-index'
 import {
   THEME_DOT, passageKey,
   type Mode, type CommunityScope, type Track,
@@ -19,6 +19,8 @@ import StudyLines from './components/StudyLines'
 import CommunityThread from './components/CommunityThread'
 import ShortcutsHelp from './components/ShortcutsHelp'
 import ExportMenu from './components/ExportMenu'
+import TrackPills from './components/TrackPills'
+import SidebarChapterList from './components/SidebarChapterList'
 
 // The active book's full data is resolved server-side (see page.tsx) and passed
 // in as a prop, so the browser never loads the whole-Bible dataset.
@@ -287,83 +289,20 @@ export default function NotebookClient({ book }: { book: Book }) {
 
         {/* Chapter list / search results */}
         <div className="flex-1 overflow-y-auto">
-          {searchQuery.trim() ? (
-            searchLoading ? (
-              <div className="px-3 py-4 text-xs text-gray-500 dark:text-gray-400 animate-pulse">Searching…</div>
-            ) : !user ? (
-              <div className="px-3 py-4 text-xs text-gray-500 dark:text-gray-400 italic">
-                <a href="/login" className="underline">Sign in</a> to search your notes.
-              </div>
-            ) : searchResults.length === 0 ? (
-              <div className="px-3 py-4 text-xs text-gray-500 dark:text-gray-400 italic">No notes found.</div>
-            ) : searchResults.map(r => {
-              const parts = r.passage_ref.split(':')
-              const rBook = getBookMeta(parts[0])
-              const rTrack = TRACKS.find(t => t.id === r.track_id)
-              const q = searchQuery.trim().toLowerCase()
-              const ci = r.content.toLowerCase().indexOf(q)
-              const start = Math.max(0, ci - 20)
-              const snippet = r.content.slice(start, ci + q.length + 60)
-              return (
-                <button
-                  key={`${r.passage_ref}|${r.track_id}`}
-                  onClick={() => goToResult(r.passage_ref)}
-                  className="w-full text-left px-3 py-2.5 border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                >
-                  <div className="text-[10px] font-medium text-gray-700 dark:text-gray-200 mb-0.5">
-                    {rBook?.name ?? parts[0]} {parts[1]}:{parts.slice(2).join(':')}
-                  </div>
-                  {rTrack && (
-                    <div className="flex items-center gap-1 mb-1">
-                      <span className="w-1 h-1 rounded-full flex-shrink-0" style={{ background: rTrack.dot }} />
-                      <span className="text-[9px] text-gray-500 dark:text-gray-400">{rTrack.label}</span>
-                    </div>
-                  )}
-                  <div className="text-[10px] text-gray-600 dark:text-gray-400 leading-snug line-clamp-2">
-                    {start > 0 ? '…' : ''}{snippet.trim()}{r.content.length > start + snippet.length ? '…' : ''}
-                  </div>
-                </button>
-              )
-            })
-          ) : (
-          book.chapters.map(ch => {
-            const isActive   = activeChapter === ch.ch
-            const hasNotes   = chaptersWithNotesLive.has(ch.ch)
-            const firstChunk = ch.chunks[0]
-            const cacheKey   = firstChunk
-              ? `${firstChunk.esvRef}|${translation}|${showVerseNumbers ? '1' : '0'}`
-              : ''
-            const subtitle   = firstChunk?.pericope
-              || (passageTexts[cacheKey] ?? '')
-                  .replace(/\[\d+\]/g, '').replace(/\s+/g, ' ').trim().slice(0, 50)
-
-            return (
-              <button
-                key={ch.ch}
-                onClick={() => scrollToChapter(ch.ch)}
-                className={`w-full text-left py-2.5 border-b border-gray-50 dark:border-gray-800 transition-colors flex gap-2.5 items-start ${
-                  isActive
-                    ? 'bg-violet-100 dark:bg-violet-950 border-l-2 border-l-violet-500 dark:border-l-violet-400 pl-2.5 pr-3'
-                    : 'hover:bg-gray-50 dark:hover:bg-gray-800 pl-3 pr-3 border-l-2 border-l-transparent'
-                }`}
-              >
-                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5 transition-colors ${
-                  hasNotes ? 'bg-gray-400 dark:bg-gray-500' : 'bg-gray-200 dark:bg-gray-700'
-                }`} />
-                <div className="min-w-0">
-                  <div className={`text-xs font-medium leading-tight mb-0.5 ${
-                    isActive ? 'text-violet-900 dark:text-violet-300' : 'text-gray-700 dark:text-gray-300'
-                  }`}>
-                    Chapter {ch.ch}
-                  </div>
-                  <div className="text-[10px] text-gray-400 dark:text-gray-500 leading-snug line-clamp-2">
-                    {subtitle}
-                  </div>
-                </div>
-              </button>
-            )
-          })
-          )}
+          <SidebarChapterList
+            searchQuery={searchQuery}
+            searchLoading={searchLoading}
+            searchResults={searchResults}
+            user={user}
+            book={book}
+            activeChapter={activeChapter}
+            chaptersWithNotesLive={chaptersWithNotesLive}
+            passageTexts={passageTexts}
+            translation={translation}
+            showVerseNumbers={showVerseNumbers}
+            goToResult={goToResult}
+            scrollToChapter={scrollToChapter}
+          />
         </div>
 
         {/* Export */}
@@ -457,70 +396,16 @@ export default function NotebookClient({ book }: { book: Book }) {
         <div className="max-w-2xl mx-auto px-6 py-5">
 
           {/* Track pills */}
-          <div className="flex gap-1.5 flex-wrap mb-8">
-              {TRACKS.map(t => (
-                <button
-                  key={t.id}
-                  onClick={() => toggleTrack(t.id)}
-                  aria-pressed={activeTracks.has(t.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs transition-colors ${
-                    activeTracks.has(t.id)
-                      ? 'bg-gray-100 border-gray-300 text-gray-800 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200'
-                      : 'border-gray-200 text-gray-400 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800'
-                  }`}
-                >
-                  <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full" style={{ background: t.dot }} />
-                  {t.label}
-                </button>
-              ))}
-
-              {/* User's own custom line */}
-              {editingTheme ? (
-                <form
-                  onSubmit={e => { e.preventDefault(); saveTheme(themeInput) }}
-                  className="flex items-center gap-1.5"
-                >
-                  <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">My line:</span>
-                  <input
-                    autoFocus
-                    type="text"
-                    value={themeInput}
-                    onChange={e => setThemeInput(e.target.value)}
-                    placeholder="name it (e.g. covenant)"
-                    maxLength={40}
-                    className="text-xs border border-gray-300 dark:border-gray-600 rounded-full px-3 py-1 outline-none bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 w-40 focus:border-gray-500 dark:focus:border-gray-400"
-                  />
-                  <button type="submit" className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 px-1" title="Save">✓</button>
-                  <button type="button" onClick={() => { setEditingTheme(false); setThemeInput(themeLabel) }} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1" title="Cancel">✕</button>
-                </form>
-              ) : themeLabel ? (
-                <button
-                  onClick={() => toggleTrack('theme')}
-                  aria-pressed={activeTracks.has('theme')}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs transition-colors ${
-                    activeTracks.has('theme')
-                      ? 'bg-gray-100 border-gray-300 text-gray-800 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200'
-                      : 'border-gray-200 text-gray-400 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800'
-                  }`}
-                >
-                  <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: THEME_DOT }} />
-                  {themeLabel}
-                  <span
-                    role="button"
-                    aria-label="Edit theme"
-                    onClick={e => { e.stopPropagation(); setThemeInput(themeLabel); setEditingTheme(true) }}
-                    className="ml-0.5 text-[10px] opacity-40 hover:opacity-100 transition-opacity"
-                  >✎</span>
-                </button>
-              ) : (
-                <button
-                  onClick={() => { setThemeInput(''); setEditingTheme(true) }}
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-dashed border-gray-300 dark:border-gray-600 text-xs text-gray-400 dark:text-gray-500 hover:border-gray-400 dark:hover:border-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-                >
-                  + create your own line
-                </button>
-              )}
-            </div>
+          <TrackPills
+            activeTracks={activeTracks}
+            toggleTrack={toggleTrack}
+            themeLabel={themeLabel}
+            themeInput={themeInput}
+            setThemeInput={setThemeInput}
+            editingTheme={editingTheme}
+            setEditingTheme={setEditingTheme}
+            saveTheme={saveTheme}
+          />
 
           {/* All-books community feed */}
           {mode === 'community' && communityScope === 'all' && (
