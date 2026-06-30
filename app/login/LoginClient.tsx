@@ -1,11 +1,18 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 
 export default function LoginClient() {
   const [devError, setDevError] = useState('')
   const [devLoading, setDevLoading] = useState(false)
+  const [callbackError, setCallbackError] = useState('')
   const supabase = createClient()
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const err = params.get('error')
+    if (err) setCallbackError(decodeURIComponent(err))
+  }, [])
 
   const signInWithGoogle = async () => {
     await supabase.auth.signInWithOAuth({
@@ -51,6 +58,10 @@ export default function LoginClient() {
           </button>
           {devError && <p className="mt-2 text-xs text-red-500">{devError}</p>}
         </div>
+      )}
+
+      {callbackError && (
+        <p className="mb-4 text-xs text-red-500 break-words">{callbackError}</p>
       )}
 
       <button

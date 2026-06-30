@@ -8,13 +8,12 @@ export default function AuthCallback() {
   useEffect(() => {
     const code = new URLSearchParams(window.location.search).get('code')
     if (!code) {
-      window.location.href = '/login'
+      window.location.href = '/login?error=no_code&url=' + encodeURIComponent(window.location.href)
       return
     }
     supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
       if (error) {
-        console.error('[auth/callback]', error.message)
-        window.location.href = '/login'
+        window.location.href = '/login?error=' + encodeURIComponent(error.message)
       } else {
         window.location.href = '/notebook'
       }
