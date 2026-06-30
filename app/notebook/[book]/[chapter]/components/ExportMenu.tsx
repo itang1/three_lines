@@ -2,7 +2,8 @@
 import { useState, useEffect, useRef } from 'react'
 import type { SupabaseClient, User } from '@supabase/supabase-js'
 import type { Database } from '@/lib/database.types'
-import { TRACKS, getBookMeta, type Book } from '@/lib/books-index'
+import type { Book } from '@/lib/books-index'
+import { buildPlainText, buildMarkdown, downloadFile } from '@/lib/exportNotes'
 
 type Props = {
   user: User
@@ -10,16 +11,16 @@ type Props = {
   supabase: SupabaseClient<Database>
 }
 
-// Sidebar "Export notes" control: a dropdown offering the current book or all
-// books, downloaded as a plain-text file built from the user's saved notes.
+type Format = 'txt' | 'md'
+
 export default function ExportMenu({ user, book, supabase }: Props) {
   const bookId = book.id
-  const [exportOpen, setExportOpen]       = useState(false)
-  const [exporting, setExporting]         = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [exportMessage, setExportMessage] = useState('')
+  const [format, setFormat] = useState<Format>('txt')
   const exportRef = useRef<HTMLDivElement>(null)
 
-  // Close on click-outside or Escape, and clear any stale message when closed.
   useEffect(() => {
     if (!exportOpen) { setExportMessage(''); return }
     const onPointerDown = (e: MouseEvent) => {
@@ -55,37 +56,15 @@ export default function ExportMenu({ user, book, supabase }: Props) {
       return
     }
     setExportOpen(false)
-    const lines: string[] = [
-      `Three Lines Notes: ${scope === 'book' ? book.name : 'All Books'}`,
-      `Exported ${new Date().toLocaleDateString()}`,
-      '',
-    ]
-    let lastRef = ''
-    data.forEach(note => {
-      const parts = note.passage_ref.split(':')
-      const rBook = getBookMeta(parts[0])
-      const track = TRACKS.find(t => t.id === note.track_id)
-      if (note.passage_ref !== lastRef) {
-        if (lastRef) lines.push('')
-        lines.push(`--- ${rBook?.name ?? parts[0]} ${parts[1]}:${parts.slice(2).join(':')} ---`)
-        lastRef = note.passage_ref
-      }
-      lines.push(`[${track?.label ?? note.track_id}]`)
-      lines.push(note.content)
-    })
-    const text = lines.join('\n')
-    const filename = scope === 'book'
-      ? `${book.name.toLowerCase().replace(/\s+/g, '-')}-notes.txt`
-      : 'three-lines-notes.txt'
-    const blob = new Blob([text], { type: 'text/plain' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    setTimeout(() => URL.revokeObjectURL(url), 1000)
+    const title = `Three Lines Notes: ${scope === 'book' ? book.name : 'All Books'}`
+    const slug = scope === 'book'
+      ? book.name.toLowerCase().replace(/\s+/g, '-')
+      : 'three-lines'
+    if (format === 'md') {
+      downloadFile(buildMarkdown(title, data), `${slug}-notes.md`, 'text/markdown')
+    } else {
+      downloadFile(buildPlainText(title, data), `${slug}-notes.txt`, 'text/plain')
+    }
   }
 
   return (
@@ -100,6 +79,23 @@ export default function ExportMenu({ user, book, supabase }: Props) {
       </button>
       {exportOpen && (
         <div role="menu" className="absolute bottom-full left-0 right-0 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-md">
+          <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-800 flex items-center gap-1.5">
+            <span className="text-[10px] text-gray-400 dark:text-gray-500 mr-1">Format</span>
+            {(['txt', 'md'] as Format[]).map(f => (
+              <button
+                key={f}
+                onClick={() => setFormat(f)}
+                aria-pressed={format === f}
+                className={`px-2 py-0.5 rounded text-[10px] border transition-colors ${
+                  format === f
+                    ? 'bg-gray-100 border-gray-300 text-gray-800 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200'
+                    : 'border-gray-200 dark:border-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                }`}
+              >
+                {f === 'txt' ? 'Plain text' : 'Markdown'}
+              </button>
+            ))}
+          </div>
           <button
             role="menuitem"
             onClick={() => exportNotes('book')}

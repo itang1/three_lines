@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { buildPlainText, buildMarkdown, downloadFile } from '@/lib/exportNotes'
 
 type Stats = {
   noteCount: number
@@ -24,6 +25,8 @@ export default function ProfileClient() {
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
+  const [exporting, setExporting] = useState(false)
+  const [exportMessage, setExportMessage] = useState('')
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -98,6 +101,27 @@ export default function ProfileClient() {
     setConfirmApplyAll(false)
     setAppliedToAll(true)
     setTimeout(() => setAppliedToAll(false), 2500)
+  }
+
+  const exportAllNotes = async (format: 'txt' | 'md') => {
+    setExporting(true)
+    setExportMessage('')
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setExporting(false); return }
+    const { data, error } = await supabase.from('notes')
+      .select('passage_ref, track_id, content')
+      .eq('user_id', user.id)
+      .neq('content', '')
+      .order('passage_ref')
+    setExporting(false)
+    if (error) { setExportMessage('Export failed. Please try again.'); return }
+    if (!data || data.length === 0) { setExportMessage('No notes yet.'); return }
+    const title = 'Three Lines Notes: All Books'
+    if (format === 'md') {
+      downloadFile(buildMarkdown(title, data), 'three-lines-notes.md', 'text/markdown')
+    } else {
+      downloadFile(buildPlainText(title, data), 'three-lines-notes.txt', 'text/plain')
+    }
   }
 
   const deleteAccount = async () => {
@@ -252,6 +276,29 @@ export default function ProfileClient() {
         ) : (
           <p className="text-sm text-gray-400 dark:text-gray-500">No notes yet.</p>
         )}
+      </section>
+
+      {/* Export */}
+      <section className="mb-12">
+        <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Export notes</h2>
+        <p className="text-xs text-gray-400 dark:text-gray-500 mb-3">Download all your notes across every book.</p>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => exportAllNotes('txt')}
+            disabled={exporting}
+            className="px-3 py-1.5 rounded-md border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-40"
+          >
+            {exporting ? 'Exporting…' : 'Plain text'}
+          </button>
+          <button
+            onClick={() => exportAllNotes('md')}
+            disabled={exporting}
+            className="px-3 py-1.5 rounded-md border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-40"
+          >
+            {exporting ? 'Exporting…' : 'Markdown'}
+          </button>
+          {exportMessage && <span className="text-xs text-gray-400 dark:text-gray-500">{exportMessage}</span>}
+        </div>
       </section>
 
       {/* Danger zone */}
