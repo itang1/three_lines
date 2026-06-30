@@ -10,7 +10,6 @@ type Mode = 'study' | 'community'
 
 type CommunityNote = {
   id: string
-  user_id: string
   passage_ref: string
   track_id: string
   content: string
@@ -57,6 +56,9 @@ export default function NotebookClient() {
   const [noteVisibility, setNoteVisibility] = useState<Record<string, boolean>>({})
   const [notesPublicDefault, setNotesPublicDefault] = useState<boolean>(true)
   const [communityNotes, setCommunityNotes] = useState<CommunityNote[]>([])
+  // IDs of the viewer's own notes — used to hide the report button on them
+  // without shipping every note's user_id to the browser.
+  const [myNoteIds, setMyNoteIds] = useState<Set<string>>(new Set())
   const [replies, setReplies]               = useState<Record<string, Reply[]>>({})
   const [openThreads, setOpenThreads]       = useState<Set<string>>(new Set())
   const [replyText, setReplyText]           = useState<Record<string, string>>({})
@@ -77,6 +79,9 @@ export default function NotebookClient() {
   const [searchLoading, setSearchLoading] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [exportMessage, setExportMessage] = useState('')
+  const exportRef = useRef<HTMLDivElement>(null)
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [themeLabel, setThemeLabel] = useState('')
   const [themeInput, setThemeInput] = useState('')
   const [editingTheme, setEditingTheme] = useState(false)
@@ -281,11 +286,20 @@ export default function NotebookClient() {
       })
   }, [user, bookId])
 
+  // Track the viewer's own note IDs (own data only — no cross-user exposure)
+  useEffect(() => {
+    if (!user) { setMyNoteIds(new Set()); return }
+    supabase.from('notes')
+      .select('id')
+      .eq('user_id', user.id)
+      .then(({ data }) => { if (data) setMyNoteIds(new Set(data.map(n => n.id))) })
+  }, [user])
+
   // Load community notes for the current book
   useEffect(() => {
     if (mode !== 'community' || communityScope !== 'book') return
     supabase.from('notes')
-      .select('id, user_id, passage_ref, track_id, content, updated_at, profiles(display_name)')
+      .select('id, passage_ref, track_id, content, updated_at, profiles(display_name)')
       .like('passage_ref', `${bookId}:%`)
       .eq('is_public', true)
       .neq('content', '')
@@ -301,7 +315,7 @@ export default function NotebookClient() {
     setAllNotesHasMore(false)
     setAllNotesLoading(true)
     supabase.from('notes')
-      .select('id, user_id, passage_ref, track_id, content, updated_at, profiles(display_name)')
+      .select('id, passage_ref, track_id, content, updated_at, profiles(display_name)')
       .eq('is_public', true)
       .neq('content', '')
       .order('updated_at', { ascending: false })
@@ -314,28 +328,19 @@ export default function NotebookClient() {
       })
   }, [mode, communityScope])
 
-  // Load most-discussed passages
+  // Load most-discussed passages (aggregated server-side so user_id stays in the DB)
   useEffect(() => {
     if (mode !== 'community' || communityScope !== 'top') return
     setTopPassages([])
     setTopPassagesLoading(true)
-    supabase.from('notes')
-      .select('passage_ref, user_id')
-      .eq('is_public', true)
-      .neq('content', '')
+    supabase.rpc('top_passages', { p_limit: 30 })
       .then(({ data }) => {
-        const writers: Record<string, Set<string>> = {}
-        const lines: Record<string, number> = {}
-        ;(data ?? []).forEach(n => {
-          if (!writers[n.passage_ref]) writers[n.passage_ref] = new Set()
-          writers[n.passage_ref].add(n.user_id)
-          lines[n.passage_ref] = (lines[n.passage_ref] ?? 0) + 1
-        })
-        const sorted = Object.keys(writers)
-          .map(passage_ref => ({ passage_ref, notes: writers[passage_ref].size, lines: lines[passage_ref] }))
-          .sort((a, b) => b.notes - a.notes || b.lines - a.lines)
-          .slice(0, 30)
-        setTopPassages(sorted)
+        const rows = (data ?? []) as Array<{ passage_ref: string; notes: number; lines: number }>
+        setTopPassages(rows.map(r => ({
+          passage_ref: r.passage_ref,
+          notes: Number(r.notes),
+          lines: Number(r.lines),
+        })))
         setTopPassagesLoading(false)
       })
   }, [mode, communityScope])
@@ -368,6 +373,31 @@ export default function NotebookClient() {
       .update({ is_public: next, updated_at: new Date().toISOString() })
       .eq('user_id', user.id)
       .eq('passage_ref', passageRef)
+  }
+
+  // Delete every line a user wrote for one passage chunk, then clear it locally
+  const deleteChunkNotes = async (passageRef: string) => {
+    if (!user) return
+    setConfirmDelete(null)
+    // Cancel any pending debounced saves for this passage so they don't re-create rows
+    Object.keys(saveTimers.current).forEach(key => {
+      if (key.startsWith(`${passageRef}|`)) clearTimeout(saveTimers.current[key])
+    })
+    setNotes(prev => {
+      const next = { ...prev }
+      Object.keys(next).forEach(key => { if (key.startsWith(`${passageRef}|`)) delete next[key] })
+      return next
+    })
+    setNoteVisibility(prev => {
+      const next = { ...prev }
+      delete next[passageRef]
+      return next
+    })
+    const { error } = await supabase.from('notes')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('passage_ref', passageRef)
+    if (error) console.error('[three-lines] note delete failed:', error)
   }
 
   const toggleTrack = (id: string) => {
@@ -414,7 +444,7 @@ export default function NotebookClient() {
     setAllNotesOffset(next)
     setAllNotesLoading(true)
     const { data } = await supabase.from('notes')
-      .select('id, user_id, passage_ref, track_id, content, updated_at, profiles(display_name)')
+      .select('id, passage_ref, track_id, content, updated_at, profiles(display_name)')
       .eq('is_public', true)
       .neq('content', '')
       .order('updated_at', { ascending: false })
@@ -453,6 +483,21 @@ export default function NotebookClient() {
     if (newBookId === bookId) return
     router.push(`/notebook/${newBookId}/1`)
   }
+
+  // Export dropdown: close on click-outside or Escape, and clear any stale message when closed
+  useEffect(() => {
+    if (!exportOpen) { setExportMessage(''); return }
+    const onPointerDown = (e: MouseEvent) => {
+      if (exportRef.current && !exportRef.current.contains(e.target as Node)) setExportOpen(false)
+    }
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') setExportOpen(false) }
+    document.addEventListener('mousedown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [exportOpen])
 
   // Keyboard shortcuts: j/→ next chapter, k/← prev chapter, / focus book selector, t cycle translation
   useEffect(() => {
@@ -553,14 +598,18 @@ export default function NotebookClient() {
       .order('passage_ref')
     const { data, error } = await (scope === 'book' ? base.like('passage_ref', `${bookId}:%`) : base)
     setExporting(false)
-    setExportOpen(false)
-    if (error) { console.error('[three-lines] export query failed:', error); return }
-    if (!data || data.length === 0) {
-      alert(scope === 'book'
-        ? `No notes found for ${book.name}.`
-        : 'No notes found across any book.')
+    if (error) {
+      console.error('[three-lines] export query failed:', error)
+      setExportMessage('Export failed. Please try again.')
       return
     }
+    if (!data || data.length === 0) {
+      setExportMessage(scope === 'book'
+        ? `No notes yet for ${book.name}.`
+        : 'No notes yet in any book.')
+      return
+    }
+    setExportOpen(false)
     const lines: string[] = [
       `Three Lines Notes — ${scope === 'book' ? book.name : 'All Books'}`,
       `Exported ${new Date().toLocaleDateString()}`,
@@ -775,16 +824,19 @@ export default function NotebookClient() {
 
         {/* Export */}
         {user && (
-          <div className="border-t border-gray-100 dark:border-gray-800 flex-shrink-0 relative">
+          <div ref={exportRef} className="border-t border-gray-100 dark:border-gray-800 flex-shrink-0 relative">
             <button
               onClick={() => setExportOpen(v => !v)}
+              aria-expanded={exportOpen}
+              aria-haspopup="menu"
               className="w-full text-left px-3 py-2.5 text-xs text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
             >
               ↓ Export notes
             </button>
             {exportOpen && (
-              <div className="absolute bottom-full left-0 right-0 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-md">
+              <div role="menu" className="absolute bottom-full left-0 right-0 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-md">
                 <button
+                  role="menuitem"
                   onClick={() => exportNotes('book')}
                   disabled={exporting}
                   className="w-full text-left px-3 py-2.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors border-b border-gray-100 dark:border-gray-800 disabled:opacity-40"
@@ -792,12 +844,18 @@ export default function NotebookClient() {
                   {book.name}
                 </button>
                 <button
+                  role="menuitem"
                   onClick={() => exportNotes('all')}
                   disabled={exporting}
                   className="w-full text-left px-3 py-2.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-40"
                 >
                   All books
                 </button>
+                {exportMessage && (
+                  <p role="status" className="px-3 py-2.5 text-xs text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/20">
+                    {exportMessage}
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -994,7 +1052,7 @@ export default function NotebookClient() {
                           </button>
                         </div>
                         <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed ml-8">{note.content}</p>
-                        {user && note.user_id !== user.id && (
+                        {user && !myNoteIds.has(note.id) && (
                           <div className="ml-8 mt-2">
                             <ReportButton noteId={note.id} />
                           </div>
@@ -1093,6 +1151,7 @@ export default function NotebookClient() {
                   const isLoading           = loadingPassages.has(cacheKey)
                   const chunkCommunityNotes = filteredCommunityNotes.filter(n => n.passage_ref === pKey)
                   const isChunkPublic = noteVisibility[pKey] ?? notesPublicDefault
+                  const chunkHasNotes = Object.entries(notes).some(([k, v]) => k.startsWith(`${pKey}|`) && v.trim())
 
                   return (
                     <div key={chunk.ref} className="mb-5">
@@ -1147,7 +1206,34 @@ export default function NotebookClient() {
                             )
                           })}
                           {user && (
-                            <div className="px-4 py-2.5 border-t border-gray-100 dark:border-gray-800 flex justify-end bg-gray-50/50 dark:bg-gray-800/20">
+                            <div className="px-4 py-2.5 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between gap-2 bg-gray-50/50 dark:bg-gray-800/20">
+                              {chunkHasNotes ? (
+                                confirmDelete === pKey ? (
+                                  <span className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                    Delete these notes?
+                                    <button
+                                      onClick={() => deleteChunkNotes(pKey)}
+                                      className="font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
+                                    >
+                                      Delete
+                                    </button>
+                                    <button
+                                      onClick={() => setConfirmDelete(null)}
+                                      className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </span>
+                                ) : (
+                                  <button
+                                    onClick={() => setConfirmDelete(pKey)}
+                                    aria-label={`Delete your notes for ${book.name} ${chunk.ref}`}
+                                    className="text-xs text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                                  >
+                                    Delete
+                                  </button>
+                                )
+                              ) : <span />}
                               <button
                                 onClick={() => toggleNoteVisibility(pKey)}
                                 className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
@@ -1215,7 +1301,7 @@ export default function NotebookClient() {
                                         ? `${noteReplies.length} repl${noteReplies.length === 1 ? 'y' : 'ies'}`
                                         : 'Reply'}
                                   </button>
-                                  {user && note.user_id !== user.id && <ReportButton noteId={note.id} />}
+                                  {user && !myNoteIds.has(note.id) && <ReportButton noteId={note.id} />}
                                 </div>
                                 {isOpen && (
                                   <div className="ml-8 mt-3 pl-3 border-l border-gray-100 dark:border-gray-800">

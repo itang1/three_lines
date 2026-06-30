@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { clientIp, rateLimit } from '@/lib/rate-limit'
 
 // GET /api/passage?book=john&chapter=1&ref=John+1:1-18&translation=ESV
 //
@@ -91,6 +92,17 @@ async function fetchApiBible(ref: string, translation: string, verseNumbers: boo
 }
 
 export async function GET(req: Request) {
+  // Block browser calls from other origins; pair with a per-IP cap so a direct
+  // scraper cannot drain the ESV / API.Bible quota. Same-origin app calls and
+  // direct navigation are never cross-site, so legitimate use is untouched.
+  if (req.headers.get('sec-fetch-site') === 'cross-site') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+  const ip = clientIp(req)
+  if (!(await rateLimit(`passage:${ip}`, 240, 60))) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+  }
+
   const { searchParams } = new URL(req.url)
   const bookId        = searchParams.get('book')
   const chapter       = searchParams.get('chapter')

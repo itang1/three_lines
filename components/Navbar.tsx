@@ -1,6 +1,6 @@
 'use client'
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useTheme } from '@/components/ThemeProvider'
 import type { User } from '@supabase/supabase-js'
@@ -37,6 +37,7 @@ export default function Navbar() {
   const [showNamePrompt, setShowNamePrompt] = useState(false)
   const [nameInput, setNameInput] = useState('')
   const [nameSaving, setNameSaving] = useState(false)
+  const namePromptRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
   const { theme, toggle } = useTheme()
 
@@ -64,6 +65,32 @@ export default function Navbar() {
         }
       })
   }, [user])
+
+  // Name prompt: Escape to dismiss and trap Tab focus inside the dialog
+  useEffect(() => {
+    if (!showNamePrompt) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setShowNamePrompt(false); return }
+      if (e.key !== 'Tab') return
+      const root = namePromptRef.current
+      if (!root) return
+      const focusable = root.querySelectorAll<HTMLElement>(
+        'button, input, [href], [tabindex]:not([tabindex="-1"])'
+      )
+      if (focusable.length === 0) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [showNamePrompt])
 
   const signOut = async () => {
     await supabase.auth.signOut()
@@ -189,9 +216,19 @@ export default function Navbar() {
 
       {/* Display name prompt — shown once on first login when name is still Anonymous */}
       {showNamePrompt && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 dark:bg-black/50 px-4">
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-100 dark:border-gray-800 p-8 w-full max-w-sm">
-            <h2 className="text-xl font-serif font-medium text-gray-900 dark:text-gray-100 mb-1">What should we call you?</h2>
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 dark:bg-black/50 px-4"
+          onClick={() => setShowNamePrompt(false)}
+        >
+          <div
+            ref={namePromptRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="name-prompt-title"
+            onClick={e => e.stopPropagation()}
+            className="bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-100 dark:border-gray-800 p-8 w-full max-w-sm"
+          >
+            <h2 id="name-prompt-title" className="text-xl font-serif font-medium text-gray-900 dark:text-gray-100 mb-1">What should we call you?</h2>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">
               Your display name appears next to your notes in community view.
             </p>

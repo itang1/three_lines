@@ -52,6 +52,14 @@ create table if not exists reports (
   created_at timestamptz default now()
 );
 
+-- Shared fixed-window rate-limit counters. Survives serverless cold starts,
+-- unlike an in-memory Map. Keyed like "contact:<ip>" or "passage:<ip>".
+create table if not exists rate_limits (
+  id text primary key,
+  count int not null default 0,
+  window_start timestamptz not null default now()
+);
+
 -- Columns (add if missing on existing databases)
 
 alter table profiles add column if not exists preferred_translation text not null default 'ESV';
@@ -83,6 +91,51 @@ alter table reports add constraint reports_note_id_reporter_id_key
 create index if not exists reports_status_created_at_idx on reports (status, created_at desc);
 create index if not exists reports_note_id_idx on reports (note_id);
 
+-- Functions
+
+-- Atomic fixed-window rate limiter. Returns true if the call is allowed.
+-- Row-locks the counter so concurrent serverless instances stay consistent.
+create or replace function check_rate_limit(p_key text, p_max int, p_window_seconds int)
+returns boolean as $$
+declare
+  v_count int;
+  v_start timestamptz;
+begin
+  select count, window_start into v_count, v_start
+  from rate_limits where id = p_key for update;
+
+  if not found then
+    insert into rate_limits (id, count, window_start) values (p_key, 1, now());
+    return true;
+  end if;
+
+  if now() - v_start > make_interval(secs => p_window_seconds) then
+    update rate_limits set count = 1, window_start = now() where id = p_key;
+    return true;
+  end if;
+
+  if v_count >= p_max then
+    return false;
+  end if;
+
+  update rate_limits set count = count + 1 where id = p_key;
+  return true;
+end;
+$$ language plpgsql security definer;
+
+-- Most-discussed passages, aggregated server-side so user_id never leaves the DB.
+create or replace function top_passages(p_limit int default 30)
+returns table (passage_ref text, notes bigint, lines bigint) as $$
+  select passage_ref,
+         count(distinct user_id) as notes,
+         count(*) as lines
+  from notes
+  where is_public = true and content <> ''
+  group by passage_ref
+  order by notes desc, lines desc
+  limit p_limit;
+$$ language sql stable security definer;
+
 -- Trigger: auto-create profile on signup
 
 create or replace function handle_new_user()
@@ -107,16 +160,20 @@ alter table comments enable row level security;
 alter table profiles enable row level security;
 alter table passages enable row level security;
 alter table reports enable row level security;
+-- No policies: only the service role and the security-definer RPC touch this table.
+alter table rate_limits enable row level security;
 
 -- Notes policies
 drop policy if exists "Users read own notes" on notes;
 drop policy if exists "Users insert own notes" on notes;
 drop policy if exists "Users update own notes" on notes;
+drop policy if exists "Users delete own notes" on notes;
 drop policy if exists "Anyone reads public notes" on notes;
 
 create policy "Users read own notes" on notes for select using (auth.uid() = user_id);
 create policy "Users insert own notes" on notes for insert with check (auth.uid() = user_id);
 create policy "Users update own notes" on notes for update using (auth.uid() = user_id);
+create policy "Users delete own notes" on notes for delete using (auth.uid() = user_id);
 create policy "Anyone reads public notes" on notes for select using (is_public = true);
 
 -- Comments policies
@@ -140,7 +197,8 @@ drop policy if exists "Anyone reads passages" on passages;
 drop policy if exists "Service role inserts passages" on passages;
 
 create policy "Anyone reads passages" on passages for select using (true);
-create policy "Service role inserts passages" on passages for insert with check (true);
+-- No insert policy: the server fetch path uses the service role, which bypasses
+-- RLS. A public insert policy would let any anon-key holder poison the cache.
 
 -- Reports policies
 -- Reads and moderation actions go through the service role in the API, which

@@ -4,7 +4,7 @@ import Navbar from '@/components/Navbar'
 import { ThemeProvider } from '@/components/ThemeProvider'
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://threelines.app'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://threelines.app'),
   title: {
     default: 'Three Lines',
     template: '%s | Three Lines',

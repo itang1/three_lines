@@ -1,33 +1,12 @@
 import { NextResponse } from 'next/server'
+import { clientIp, rateLimit } from '@/lib/rate-limit'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const RATE_LIMIT_MS = 10 * 60 * 1000 // 10 minutes per IP
-const seen = new Map<string, number>()
-
-function clientIp(req: Request): string {
-  return (
-    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    req.headers.get('x-real-ip') ??
-    'unknown'
-  )
-}
-
-function rateLimited(ip: string): boolean {
-  const last = seen.get(ip)
-  if (last && Date.now() - last < RATE_LIMIT_MS) return true
-  seen.set(ip, Date.now())
-  // prune stale entries to avoid unbounded growth
-  if (seen.size > 500) {
-    for (const [k, v] of seen) {
-      if (Date.now() - v > RATE_LIMIT_MS) seen.delete(k)
-    }
-  }
-  return false
-}
+const RATE_LIMIT_WINDOW_S = 10 * 60 // one submission per 10 minutes per IP
 
 export async function POST(req: Request) {
   const ip = clientIp(req)
-  if (rateLimited(ip)) {
+  if (!(await rateLimit(`contact:${ip}`, 1, RATE_LIMIT_WINDOW_S))) {
     return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
   }
 
