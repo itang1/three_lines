@@ -74,6 +74,15 @@ create table if not exists bookmarks (
   unique (user_id, passage_ref)
 );
 
+-- Comment likes: one row per (user, comment). Used for replies in a thread.
+create table if not exists comment_likes (
+  id uuid primary key default gen_random_uuid(),
+  comment_id uuid references comments(id) on delete cascade not null,
+  user_id uuid references profiles(id) on delete cascade not null,
+  created_at timestamptz default now(),
+  unique (comment_id, user_id)
+);
+
 -- Shared fixed-window rate-limit counters. Survives serverless cold starts,
 -- unlike an in-memory Map. Keyed like "contact:<ip>" or "passage:<ip>".
 create table if not exists rate_limits (
@@ -147,6 +156,9 @@ create index if not exists notes_content_trgm_idx
 -- comments: reply loads via eq(parent_id).
 create index if not exists comments_parent_id_idx on comments (parent_id);
 
+-- comment_likes: like counts load via in(comment_id, [...]).
+create index if not exists comment_likes_comment_id_idx on comment_likes (comment_id);
+
 -- Functions
 
 -- Atomic fixed-window rate limiter. Returns true if the call is allowed.
@@ -218,6 +230,7 @@ alter table passages enable row level security;
 alter table reports enable row level security;
 alter table notifications enable row level security;
 alter table bookmarks enable row level security;
+alter table comment_likes enable row level security;
 -- No policies: only the service role and the security-definer RPC touch this table.
 alter table rate_limits enable row level security;
 
@@ -280,3 +293,12 @@ drop policy if exists "Users delete own bookmarks" on bookmarks;
 create policy "Users read own bookmarks" on bookmarks for select using (auth.uid() = user_id);
 create policy "Users insert own bookmarks" on bookmarks for insert with check (auth.uid() = user_id);
 create policy "Users delete own bookmarks" on bookmarks for delete using (auth.uid() = user_id);
+
+-- Comment likes policies
+drop policy if exists "Anyone reads comment likes" on comment_likes;
+drop policy if exists "Users insert own comment likes" on comment_likes;
+drop policy if exists "Users delete own comment likes" on comment_likes;
+
+create policy "Anyone reads comment likes" on comment_likes for select using (true);
+create policy "Users insert own comment likes" on comment_likes for insert with check (auth.uid() = user_id);
+create policy "Users delete own comment likes" on comment_likes for delete using (auth.uid() = user_id);

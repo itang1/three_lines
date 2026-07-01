@@ -83,7 +83,8 @@ export default function NotebookClient({ book }: { book: Book }) {
     topPassages, topPassagesLoading,
     replies, openThreads, toggleThread,
     replyText, setReplyText, postReply,
-  } = useCommunity({ mode, bookId, communityScope, supabase })
+    replyLikeCounts, likedReplyIds, toggleReplyLike,
+  } = useCommunity({ mode, bookId, communityScope, supabase, user })
 
   const { searchQuery, setSearchQuery, searchResults, searchLoading } = useNoteSearch({ user, supabase })
 
@@ -567,6 +568,9 @@ export default function NotebookClient({ book }: { book: Book }) {
                           replyText={replyText}
                           setReplyText={setReplyText}
                           postReply={postReply}
+                          replyLikeCounts={replyLikeCounts}
+                          likedReplyIds={likedReplyIds}
+                          toggleReplyLike={toggleReplyLike}
                         />
                       )}
                     </div>

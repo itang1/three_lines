@@ -133,34 +133,64 @@ export default function SidebarChapterList({
               .replace(/\[\d+\]/g, '').replace(/\s+/g, ' ').trim().slice(0, 50)
 
         return (
-          <button
-            key={ch.ch}
-            onClick={() => scrollToChapter(ch.ch)}
-            className={`w-full text-left py-2.5 border-b border-gray-50 dark:border-gray-800 transition-colors flex gap-2.5 items-start ${
-              isActive
-                ? 'bg-violet-100 dark:bg-violet-950 border-l-2 border-l-violet-500 dark:border-l-violet-400 pl-2.5 pr-3'
-                : 'hover:bg-gray-50 dark:hover:bg-gray-800 pl-3 pr-3 border-l-2 border-l-transparent'
-            }`}
-          >
-            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5 transition-colors ${
-              hasNotes ? 'bg-gray-400 dark:bg-gray-500' : 'bg-gray-200 dark:bg-gray-700'
-            }`} />
-            <div className="min-w-0 flex-1">
-              <div className={`text-xs font-medium leading-tight mb-0.5 flex items-center gap-1.5 ${
-                isActive ? 'text-violet-900 dark:text-violet-300' : 'text-gray-700 dark:text-gray-300'
-              }`}>
-                Chapter {ch.ch}
-                {hasBookmark && (
-                  <span className="text-amber-500 dark:text-amber-400">
-                    <BookmarkRibbon filled />
-                  </span>
-                )}
+          <div key={ch.ch} className="border-b border-gray-50 dark:border-gray-800">
+            <button
+              onClick={() => scrollToChapter(ch.ch)}
+              className={`w-full text-left py-2.5 transition-colors flex gap-2.5 items-start ${
+                isActive
+                  ? 'bg-violet-100 dark:bg-violet-950 border-l-2 border-l-violet-500 dark:border-l-violet-400 pl-2.5 pr-3'
+                  : 'hover:bg-gray-50 dark:hover:bg-gray-800 pl-3 pr-3 border-l-2 border-l-transparent'
+              }`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5 transition-colors ${
+                hasNotes ? 'bg-gray-400 dark:bg-gray-500' : 'bg-gray-200 dark:bg-gray-700'
+              }`} />
+              <div className="min-w-0 flex-1">
+                <div className={`text-xs font-medium leading-tight mb-0.5 flex items-center gap-1.5 ${
+                  isActive ? 'text-violet-900 dark:text-violet-300' : 'text-gray-700 dark:text-gray-300'
+                }`}>
+                  Chapter {ch.ch}
+                  {hasBookmark && (
+                    <span className="text-amber-500 dark:text-amber-400">
+                      <BookmarkRibbon filled />
+                    </span>
+                  )}
+                </div>
+                <div className="text-[10px] text-gray-400 dark:text-gray-500 leading-snug line-clamp-2">
+                  {subtitle}
+                </div>
               </div>
-              <div className="text-[10px] text-gray-400 dark:text-gray-500 leading-snug line-clamp-2">
-                {subtitle}
+            </button>
+
+            {/* Chunks of the active chapter — jump straight to a section */}
+            {isActive && ch.chunks.length > 1 && (
+              <div className="pb-1 bg-violet-50/60 dark:bg-violet-950/40">
+                {ch.chunks.map(chunk => {
+                  const pKey = passageKey(bookId, ch.ch, chunk.ref)
+                  const isChunkActive = pKey === activeChunk
+                  return (
+                    <button
+                      key={chunk.ref}
+                      onClick={() => scrollToPassage(pKey)}
+                      aria-current={isChunkActive || undefined}
+                      className={`w-full text-left pl-8 pr-3 py-1.5 flex items-center gap-1.5 transition-colors ${
+                        isChunkActive
+                          ? 'text-violet-800 dark:text-violet-300 font-medium'
+                          : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                      }`}
+                    >
+                      <span className={`w-1 h-1 rounded-full flex-shrink-0 ${
+                        isChunkActive ? 'bg-violet-600 dark:bg-violet-400' : 'bg-gray-300 dark:bg-gray-600'
+                      }`} />
+                      <span className="text-[11px] leading-snug truncate">
+                        {chunk.pericope || chunk.ref}
+                      </span>
+                    </button>
+                  )
+                })}
               </div>
-            </div>
-          </button>
+            )}
+          </div>
         )
       })}
     </>

@@ -90,13 +90,19 @@ Open [http://localhost:3000](http://localhost:3000)
 
 ## Database schema
 
-`supabase-schema.sql` creates three tables:
+`supabase-schema.sql` creates these tables:
 
 - `profiles` -- created automatically when a user signs up
 - `notes` -- one row per user per passage per track; `is_public` controls community visibility
 - `comments` -- community notes and threaded replies
+- `comment_likes` -- one row per user per liked reply
+- `bookmarks` -- one row per user per bookmarked passage
+- `passages` -- cached Bible text per book/chapter/ref/translation
+- `reports` -- user reports on notes, reviewed in the moderation panel
+- `notifications` -- in-app "someone replied to your note" alerts
+- `rate_limits` -- shared counters backing the contact form and comment rate limits
 
-Run the full schema file once in the Supabase SQL Editor when setting up a new project.
+Run the full schema file once in the Supabase SQL Editor when setting up a new project. It's safe to re-run after pulling changes -- every statement is idempotent.
 
 ---
 

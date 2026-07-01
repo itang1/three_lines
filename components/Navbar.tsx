@@ -1,6 +1,7 @@
 'use client'
 import Link from 'next/link'
-import { useEffect, useRef, useState } from 'react'
+import { usePathname } from 'next/navigation'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useUser } from '@/lib/useUser'
 import { useTheme } from '@/components/ThemeProvider'
@@ -40,8 +41,37 @@ function MoonIcon() {
   )
 }
 
+// Highlights the link whose section the current route falls under (e.g. any
+// /notebook/<book>/<chapter> page counts as the Notebook link being active).
+function NavLink({
+  href, match, pathname, mobile, onClick, children,
+}: {
+  href: string
+  match: string
+  pathname: string
+  mobile?: boolean
+  onClick?: () => void
+  children: ReactNode
+}) {
+  const active = pathname === match || pathname.startsWith(`${match}/`)
+  const inactiveClass = mobile
+    ? 'text-gray-600 dark:text-gray-400'
+    : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      aria-current={active ? 'page' : undefined}
+      className={`text-sm ${active ? 'text-violet-600 dark:text-violet-400 font-medium' : inactiveClass}`}
+    >
+      {children}
+    </Link>
+  )
+}
+
 export default function Navbar() {
   const user = useUser()
+  const pathname = usePathname()
   const [menuOpen, setMenuOpen] = useState(false)
   const [displayName, setDisplayName] = useState<string | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
@@ -268,12 +298,12 @@ export default function Navbar() {
 
           {/* Desktop links */}
           <div className="hidden md:flex items-center gap-5">
-            <Link href="/notebook/john/1" className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100">Notebook</Link>
-            <Link href="/instructions"    className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100">Instructions</Link>
-            <Link href="/about"           className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100">About</Link>
-            <Link href="/contact"         className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100">Contact</Link>
+            <NavLink href="/notebook/john/1" match="/notebook" pathname={pathname}>Notebook</NavLink>
+            <NavLink href="/instructions"    match="/instructions" pathname={pathname}>Instructions</NavLink>
+            <NavLink href="/about"           match="/about" pathname={pathname}>About</NavLink>
+            <NavLink href="/contact"         match="/contact" pathname={pathname}>Contact</NavLink>
             {isAdmin && (
-              <Link href="/admin" className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100">Moderation</Link>
+              <NavLink href="/admin" match="/admin" pathname={pathname}>Moderation</NavLink>
             )}
 
             <button
@@ -335,12 +365,12 @@ export default function Navbar() {
         {/* Mobile dropdown */}
         {menuOpen && (
           <div className="md:hidden absolute left-0 right-0 top-full border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-md px-4 py-3 flex flex-col gap-3 z-50">
-            <Link href="/notebook/john/1" className="text-sm text-gray-600 dark:text-gray-400" onClick={() => setMenuOpen(false)}>Notebook</Link>
-            <Link href="/instructions"    className="text-sm text-gray-600 dark:text-gray-400" onClick={() => setMenuOpen(false)}>Instructions</Link>
-            <Link href="/about"           className="text-sm text-gray-600 dark:text-gray-400" onClick={() => setMenuOpen(false)}>About</Link>
-            <Link href="/contact"         className="text-sm text-gray-600 dark:text-gray-400" onClick={() => setMenuOpen(false)}>Contact</Link>
+            <NavLink href="/notebook/john/1" match="/notebook" pathname={pathname} mobile onClick={() => setMenuOpen(false)}>Notebook</NavLink>
+            <NavLink href="/instructions"    match="/instructions" pathname={pathname} mobile onClick={() => setMenuOpen(false)}>Instructions</NavLink>
+            <NavLink href="/about"           match="/about" pathname={pathname} mobile onClick={() => setMenuOpen(false)}>About</NavLink>
+            <NavLink href="/contact"         match="/contact" pathname={pathname} mobile onClick={() => setMenuOpen(false)}>Contact</NavLink>
             {isAdmin && (
-              <Link href="/admin" className="text-sm text-gray-600 dark:text-gray-400" onClick={() => setMenuOpen(false)}>Moderation</Link>
+              <NavLink href="/admin" match="/admin" pathname={pathname} mobile onClick={() => setMenuOpen(false)}>Moderation</NavLink>
             )}
             {user && (
               <>

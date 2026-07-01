@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { SupabaseClient, User } from '@supabase/supabase-js'
 import type { Database } from '@/lib/database.types'
 import type { Mode, CommunityScope, CommunityNote, Reply, TopPassage } from '../types'
 
@@ -9,6 +9,7 @@ type Params = {
   bookId: string
   communityScope: CommunityScope
   supabase: SupabaseClient<Database>
+  user: User | null
 }
 
 type Result = {
@@ -25,11 +26,14 @@ type Result = {
   replyText: Record<string, string>
   setReplyText: React.Dispatch<React.SetStateAction<Record<string, string>>>
   postReply: (parentId: string, passageRef: string) => Promise<void>
+  replyLikeCounts: Record<string, number>
+  likedReplyIds: Set<string>
+  toggleReplyLike: (replyId: string) => Promise<void>
 }
 
 // Owns every community read: the per-book public notes, the cross-book feed
 // (paginated), the most-discussed aggregation, and comment threads.
-export function useCommunity({ mode, bookId, communityScope, supabase }: Params): Result {
+export function useCommunity({ mode, bookId, communityScope, supabase, user }: Params): Result {
   const [communityNotes, setCommunityNotes] = useState<CommunityNote[]>([])
   const [allNotes, setAllNotes]             = useState<CommunityNote[]>([])
   const [allNotesOffset, setAllNotesOffset] = useState(0)
@@ -40,6 +44,8 @@ export function useCommunity({ mode, bookId, communityScope, supabase }: Params)
   const [replies, setReplies]         = useState<Record<string, Reply[]>>({})
   const [openThreads, setOpenThreads] = useState<Set<string>>(new Set())
   const [replyText, setReplyText]     = useState<Record<string, string>>({})
+  const [replyLikeCounts, setReplyLikeCounts] = useState<Record<string, number>>({})
+  const [likedReplyIds, setLikedReplyIds]     = useState<Set<string>>(new Set())
 
   // Load community notes for the current book
   useEffect(() => {
@@ -96,6 +102,45 @@ export function useCommunity({ mode, bookId, communityScope, supabase }: Params)
       .eq('parent_id', commentId)
       .order('created_at', { ascending: true })
     if (data) setReplies(prev => ({ ...prev, [commentId]: data }))
+
+    const replyIds = (data ?? []).map(r => r.id)
+    if (replyIds.length === 0) return
+    const { data: likes } = await supabase.from('comment_likes')
+      .select('comment_id, user_id')
+      .in('comment_id', replyIds)
+    if (!likes) return
+
+    setReplyLikeCounts(prev => {
+      const next = { ...prev }
+      for (const id of replyIds) next[id] = 0
+      for (const like of likes) next[like.comment_id] = (next[like.comment_id] ?? 0) + 1
+      return next
+    })
+    setLikedReplyIds(prev => {
+      const next = new Set(prev)
+      for (const id of replyIds) next.delete(id)
+      if (user) for (const like of likes) if (like.user_id === user.id) next.add(like.comment_id)
+      return next
+    })
+  }
+
+  const toggleReplyLike = async (replyId: string) => {
+    if (!user) return
+    const isLiked = likedReplyIds.has(replyId)
+
+    setLikedReplyIds(prev => {
+      const next = new Set(prev)
+      isLiked ? next.delete(replyId) : next.add(replyId)
+      return next
+    })
+    setReplyLikeCounts(prev => ({ ...prev, [replyId]: Math.max(0, (prev[replyId] ?? 0) + (isLiked ? -1 : 1)) }))
+
+    if (isLiked) {
+      await supabase.from('comment_likes').delete().eq('comment_id', replyId).eq('user_id', user.id)
+    } else {
+      await supabase.from('comment_likes')
+        .upsert({ comment_id: replyId, user_id: user.id }, { onConflict: 'comment_id,user_id' })
+    }
   }
 
   const toggleThread = (id: string) => {
@@ -143,5 +188,6 @@ export function useCommunity({ mode, bookId, communityScope, supabase }: Params)
     topPassages, topPassagesLoading,
     replies, openThreads, toggleThread,
     replyText, setReplyText, postReply,
+    replyLikeCounts, likedReplyIds, toggleReplyLike,
   }
 }

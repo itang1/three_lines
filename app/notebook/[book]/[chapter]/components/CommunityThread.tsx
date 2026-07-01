@@ -17,6 +17,17 @@ type Props = {
   replyText: Record<string, string>
   setReplyText: Dispatch<SetStateAction<Record<string, string>>>
   postReply: (parentId: string, passageRef: string) => void
+  replyLikeCounts: Record<string, number>
+  likedReplyIds: Set<string>
+  toggleReplyLike: (replyId: string) => void
+}
+
+function HeartIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" className="w-3 h-3" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z" />
+    </svg>
+  )
 }
 
 // Community-mode view for one passage chunk: public notes with expandable
@@ -24,6 +35,7 @@ type Props = {
 export default function CommunityThread({
   pKey, chunkCommunityNotes, themeLabel, user, myNoteIds,
   openThreads, replies, toggleThread, replyText, setReplyText, postReply,
+  replyLikeCounts, likedReplyIds, toggleReplyLike,
 }: Props) {
   return (
     <div className="border border-t-0 border-gray-100 dark:border-gray-800 rounded-b-lg overflow-hidden bg-white dark:bg-gray-900">
@@ -72,15 +84,33 @@ export default function CommunityThread({
             </div>
             {isOpen && (
               <div className="ml-8 mt-3 pl-3 border-l border-gray-100 dark:border-gray-800">
-                {noteReplies.map(r => (
-                  <div key={r.id} className="py-2 border-b border-gray-50 dark:border-gray-800 last:border-b-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[10px] font-medium text-gray-600 dark:text-gray-400">{r.profiles?.display_name}</span>
-                      <span className="text-[10px] text-gray-400">{r.created_at ? new Date(r.created_at).toLocaleDateString() : ''}</span>
+                {noteReplies.map(r => {
+                  const liked = likedReplyIds.has(r.id)
+                  const likeCount = replyLikeCounts[r.id] ?? 0
+                  return (
+                    <div key={r.id} className="py-2 border-b border-gray-50 dark:border-gray-800 last:border-b-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[10px] font-medium text-gray-600 dark:text-gray-400">{r.profiles?.display_name}</span>
+                        <span className="text-[10px] text-gray-400">{r.created_at ? new Date(r.created_at).toLocaleDateString() : ''}</span>
+                      </div>
+                      <p className="text-xs text-gray-500 leading-relaxed mb-1">{r.content}</p>
+                      <button
+                        onClick={() => toggleReplyLike(r.id)}
+                        disabled={!user}
+                        title={user ? (liked ? 'Unlike' : 'Like') : 'Sign in to like'}
+                        aria-pressed={liked}
+                        className={`flex items-center gap-1 text-[11px] transition-colors ${
+                          liked
+                            ? 'text-rose-500 dark:text-rose-400'
+                            : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:hover:text-gray-400'
+                        }`}
+                      >
+                        <HeartIcon filled={liked} />
+                        {likeCount > 0 && <span>{likeCount}</span>}
+                      </button>
                     </div>
-                    <p className="text-xs text-gray-500 leading-relaxed">{r.content}</p>
-                  </div>
-                ))}
+                  )
+                })}
                 {user && (
                   <div className="flex gap-2 pt-2">
                     <input
