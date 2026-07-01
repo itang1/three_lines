@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { useRouter, useParams } from 'next/navigation'
+import { useRouter, useParams, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { useUser } from '@/lib/useUser'
 import { TRACKS, type Book } from '@/lib/books-index'
@@ -30,6 +30,7 @@ import BookPicker from './components/BookPicker'
 export default function NotebookClient({ book }: { book: Book }) {
   const router = useRouter()
   const params = useParams()
+  const searchParams = useSearchParams()
   const supabase = createClient()
 
   const bookId = book.id
@@ -59,6 +60,11 @@ export default function NotebookClient({ book }: { book: Book }) {
   // A passage to scroll to once the reading column has rendered (set when a
   // community row in another scope is clicked; flushed by the effect below).
   const pendingScrollRef = useRef<string | null>(null)
+
+  // Reply notifications deep-link with #comment-<id>; scrolled/highlighted
+  // once, then left alone so later thread activity doesn't re-trigger it.
+  const scrolledToCommentRef = useRef(false)
+  const [highlightedCommentId, setHighlightedCommentId] = useState<string | null>(null)
 
   // Reading position, lazy passage loading, notes, and community reads each
   // live in a dedicated hook (see ./hooks).
@@ -156,6 +162,33 @@ export default function NotebookClient({ book }: { book: Book }) {
     const t = setTimeout(() => scrollToPassage(passageRef, 'instant'), 150)
     return () => clearTimeout(t)
   }, [bookId])
+
+  // Reply-notification deep link: ?mode=community&thread=<noteId>#comment-<id>.
+  // Switch into the right view and open the replied-to thread so its replies load.
+  useEffect(() => {
+    if (searchParams.get('mode') === 'community') {
+      setMode('community')
+      setCommunityScope('book')
+    }
+    const threadId = searchParams.get('thread')
+    if (threadId && !openThreads.has(threadId)) toggleThread(threadId)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
+
+  // Once the target thread's replies have loaded, scroll to and briefly
+  // highlight the specific reply named in the #comment-<id> hash.
+  useEffect(() => {
+    if (scrolledToCommentRef.current) return
+    const hash = window.location.hash
+    if (!hash.startsWith('#comment-')) return
+    const commentId = decodeURIComponent(hash.slice('#comment-'.length))
+    const el = document.getElementById(`comment-${commentId}`)
+    if (!el) return
+    scrolledToCommentRef.current = true
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    setHighlightedCommentId(commentId)
+    setTimeout(() => setHighlightedCommentId(null), 3000)
+  }, [replies])
 
   const filteredCommunityNotes = useMemo(
     () => communityNotes.filter(n => activeTracks.has(n.track_id)),
@@ -571,6 +604,7 @@ export default function NotebookClient({ book }: { book: Book }) {
                           replyLikeCounts={replyLikeCounts}
                           likedReplyIds={likedReplyIds}
                           toggleReplyLike={toggleReplyLike}
+                          highlightedCommentId={highlightedCommentId}
                         />
                       )}
                     </div>

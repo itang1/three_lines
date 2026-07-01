@@ -11,7 +11,11 @@ export function useUser(): User | null {
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data }) => setUser(data.user))
+    // getSession() reads the cached session (cookie/local storage) instead of
+    // round-tripping to the auth server like getUser() does, so the signed-in
+    // state resolves immediately instead of flashing "signed out" UI first.
+    // onAuthStateChange re-fires with the verified session right after.
+    supabase.auth.getSession().then(({ data }) => setUser(data.session?.user ?? null))
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
       setUser(session?.user ?? null)
     })

@@ -12,7 +12,9 @@ type InAppNotification = {
   passage_ref: string
   read: boolean
   created_at: string | null
+  comment_id: string | null
   comments: {
+    parent_id: string | null
     profiles: { display_name: string } | null
   } | null
 }
@@ -110,7 +112,7 @@ export default function Navbar() {
     if (!user) return
     supabase
       .from('notifications')
-      .select('id, passage_ref, read, created_at, comments(profiles(display_name))')
+      .select('id, passage_ref, read, created_at, comment_id, comments(parent_id, profiles(display_name))')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(15)
@@ -202,9 +204,17 @@ export default function Navbar() {
     return `${book?.name ?? parts[0]} ${parts[1]}${parts[2] ? ':' + parts[2] : ''}`
   }
 
-  const notifPassageHref = (passageRef: string) => {
-    const [bookId, chapter] = passageRef.split(':')
-    return `/notebook/${bookId}/${chapter}#passage-${encodeURIComponent(passageRef)}`
+  // Deep-links into community mode, opens the replied-to thread, and scrolls
+  // to the specific reply (falls back to the passage chunk for older
+  // notifications that predate comment_id/parent_id being wired through).
+  const notifPassageHref = (n: InAppNotification) => {
+    const [bookId, chapter] = n.passage_ref.split(':')
+    const params = new URLSearchParams({ mode: 'community' })
+    if (n.comments?.parent_id) params.set('thread', n.comments.parent_id)
+    const hash = n.comment_id
+      ? `comment-${encodeURIComponent(n.comment_id)}`
+      : `passage-${encodeURIComponent(n.passage_ref)}`
+    return `/notebook/${bookId}/${chapter}?${params.toString()}#${hash}`
   }
 
   const relativeTime = (iso: string | null) => {
@@ -261,7 +271,7 @@ export default function Navbar() {
               return (
                 <Link
                   key={n.id}
-                  href={notifPassageHref(n.passage_ref)}
+                  href={notifPassageHref(n)}
                   onClick={() => setNotifOpen(false)}
                   className={`block px-3 py-3 border-b border-gray-50 dark:border-gray-800 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors ${
                     !n.read ? 'bg-blue-50/60 dark:bg-blue-900/10' : ''

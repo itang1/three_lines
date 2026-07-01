@@ -136,6 +136,14 @@ export default function LoginClient() {
           {pwLoading ? 'Please wait…' : mode === 'signup' ? 'Create account' : 'Sign in with email'}
         </button>
         {pwError && <p className="text-xs text-red-500">{pwError}</p>}
+        {mode === 'signin' && (
+          <p className="text-xs text-gray-400 dark:text-gray-500">
+            Forgot your password? Sign in with Google above using the same email, or{' '}
+            <a href="/contact" className="text-gray-900 dark:text-gray-200 underline underline-offset-2 hover:text-gray-500 dark:hover:text-gray-400">
+              contact us
+            </a>.
+          </p>
+        )}
         <p className="text-xs text-gray-400 dark:text-gray-500">
           {mode === 'signup' ? 'Already have an account? ' : 'New here? '}
           <button

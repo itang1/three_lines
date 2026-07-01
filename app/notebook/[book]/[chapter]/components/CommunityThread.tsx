@@ -20,6 +20,7 @@ type Props = {
   replyLikeCounts: Record<string, number>
   likedReplyIds: Set<string>
   toggleReplyLike: (replyId: string) => void
+  highlightedCommentId?: string | null
 }
 
 function HeartIcon({ filled }: { filled: boolean }) {
@@ -35,7 +36,7 @@ function HeartIcon({ filled }: { filled: boolean }) {
 export default function CommunityThread({
   pKey, chunkCommunityNotes, themeLabel, user, myNoteIds,
   openThreads, replies, toggleThread, replyText, setReplyText, postReply,
-  replyLikeCounts, likedReplyIds, toggleReplyLike,
+  replyLikeCounts, likedReplyIds, toggleReplyLike, highlightedCommentId,
 }: Props) {
   return (
     <div className="border border-t-0 border-gray-100 dark:border-gray-800 rounded-b-lg overflow-hidden bg-white dark:bg-gray-900">
@@ -88,7 +89,13 @@ export default function CommunityThread({
                   const liked = likedReplyIds.has(r.id)
                   const likeCount = replyLikeCounts[r.id] ?? 0
                   return (
-                    <div key={r.id} className="py-2 border-b border-gray-50 dark:border-gray-800 last:border-b-0">
+                    <div
+                      key={r.id}
+                      id={`comment-${r.id}`}
+                      className={`py-2 border-b border-gray-50 dark:border-gray-800 last:border-b-0 rounded transition-colors ${
+                        highlightedCommentId === r.id ? 'bg-blue-50 dark:bg-blue-900/20 -mx-2 px-2' : ''
+                      }`}
+                    >
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-[10px] font-medium text-gray-600 dark:text-gray-400">{r.profiles?.display_name}</span>
                         <span className="text-[10px] text-gray-400">{r.created_at ? new Date(r.created_at).toLocaleDateString() : ''}</span>

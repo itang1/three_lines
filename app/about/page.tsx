@@ -14,7 +14,7 @@ export default function AboutPage() {
 
         <p>
           Three Lines is a tool for studying Scripture across several lines of inquiry.
-          It grew out of a conviction about how narratives get framed by whoever is speaking.
+          It grew out of a perception about how narratives get framed by whoever is speaking.
         </p>
 
         <p>

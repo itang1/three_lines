@@ -27,7 +27,7 @@ export default function PrivacyPage() {
             You control whether each note is visible to others. New notes follow the
             sharing preference you set on your <Link href="/profile" className="text-gray-900 dark:text-gray-200 underline underline-offset-2 hover:text-gray-500 dark:hover:text-gray-400">profile</Link> page,
             and a note is only ever shown to others when it is marked public, which you can
-            change per passage. Comments are visible to others by design. You can edit or
+            change per passage. You can edit or
             delete anything you have written at any time.
           </p>
         </section>

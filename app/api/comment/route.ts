@@ -64,7 +64,7 @@ export async function POST(req: Request) {
 
   if (parent_id && inserted) {
     createInAppNotification(parent_id, user.id, passage_ref, inserted.id).catch(console.error)
-    notifyReplyAuthor(parent_id, user.id, passage_ref, content.trim()).catch(console.error)
+    notifyReplyAuthor(parent_id, user.id, passage_ref, content.trim(), inserted.id).catch(console.error)
   }
 
   return NextResponse.json({ ok: true })
@@ -96,6 +96,7 @@ async function notifyReplyAuthor(
   replierId: string,
   passageRef: string,
   replyContent: string,
+  commentId: string,
 ) {
   const RESEND_API_KEY = process.env.RESEND_API_KEY
   if (!RESEND_API_KEY) {
@@ -120,9 +121,10 @@ async function notifyReplyAuthor(
 
   const replierName = replierProfile?.display_name ?? 'Someone'
   // passage_ref is "book:chapter:chunkRef"; the route is /notebook/[book]/[chapter].
-  // Append the chapter anchor so the link lands on the right section in long books.
+  // mode=community + thread opens the replied-to note's thread, and the
+  // #comment-<id> hash scrolls to and highlights the specific reply.
   const [bookId, chapter] = passageRef.split(':')
-  const url = `${SITE_URL}/notebook/${bookId}/${chapter}#chapter-${chapter}`
+  const url = `${SITE_URL}/notebook/${bookId}/${chapter}?mode=community&thread=${parentId}#comment-${commentId}`
 
   await fetch('https://api.resend.com/emails', {
     method: 'POST',
