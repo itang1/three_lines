@@ -15,13 +15,19 @@ export async function POST(req: Request) {
   const { data: { user }, error: authError } = await supabase.auth.getUser(token)
   if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { passage_ref, track_id, content, parent_id } = await req.json()
-  if (!passage_ref || !track_id || !content?.trim()) {
+  const body = await req.json().catch(() => null)
+  if (!body || typeof body !== 'object') {
+    return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
+  }
+  const { passage_ref, track_id, content, parent_id } = body
+  // Validate the type before calling string methods so a non-string content
+  // returns a clean 400 rather than throwing a 500.
+  if (!passage_ref || !track_id || typeof content !== 'string' || !content.trim()) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
   // Cap length so a single comment cannot store/broadcast an unbounded payload.
   // Mirrors NOTE_MAX_LENGTH (5000) and the comments DB check constraint.
-  if (typeof content !== 'string' || content.trim().length > 5000) {
+  if (content.trim().length > 5000) {
     return NextResponse.json({ error: 'Comment too long' }, { status: 400 })
   }
 

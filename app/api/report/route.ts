@@ -15,7 +15,7 @@ export async function POST(req: Request) {
   const { data: { user }, error: authError } = await supabase.auth.getUser(token)
   if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { note_id, reason } = await req.json()
+  const { note_id, reason } = await req.json().catch(() => ({}))
   if (!note_id) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   if (reason != null && (typeof reason !== 'string' || reason.length > 1000)) {
     return NextResponse.json({ error: 'Invalid reason' }, { status: 400 })

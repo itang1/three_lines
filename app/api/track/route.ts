@@ -10,7 +10,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true })
   }
 
-  const body = await req.json()
+  const body = await req.json().catch(() => ({}))
   const page     = typeof body.page     === 'string' ? body.page.slice(0, 200)     : null
   const referrer = typeof body.referrer === 'string' ? body.referrer.slice(0, 500) : null
   const ua       = typeof body.ua       === 'string' ? body.ua.slice(0, 300)       : null

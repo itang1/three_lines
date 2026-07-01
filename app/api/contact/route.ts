@@ -15,7 +15,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
   }
 
-  const body = await req.json()
+  const body = await req.json().catch(() => null)
+  if (!body || typeof body !== 'object') {
+    return NextResponse.json({ error: 'Invalid input' }, { status: 400 })
+  }
   const { type, name, email, message, worked, missing, website } = body
 
   // honeypot: bots fill hidden fields, humans don't

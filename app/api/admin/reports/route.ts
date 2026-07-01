@@ -48,7 +48,7 @@ export async function POST(req: Request) {
   const admin = await requireAdmin(req)
   if (!admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { action, note_id } = await req.json()
+  const { action, note_id } = await req.json().catch(() => ({}))
   if (!note_id) return NextResponse.json({ error: 'Missing note_id' }, { status: 400 })
 
   if (action === 'remove') {
