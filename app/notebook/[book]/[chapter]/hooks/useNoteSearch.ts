@@ -45,6 +45,7 @@ export function useNoteSearch({ user, supabase }: Params): Result {
       setSearchResults(data ?? [])
       setSearchLoading(false)
     }, 300)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery, user])
 
   return { searchQuery, setSearchQuery, searchResults, searchLoading }

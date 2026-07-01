@@ -27,6 +27,7 @@ export default function TrackVisit() {
         ua:       navigator.userAgent,
       }),
     }).catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return null

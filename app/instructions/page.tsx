@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { TRACKS } from '@/lib/books-index'
+import { PROLOGUE_EXAMPLE } from '@/lib/prologue-example'
 
 export const metadata: Metadata = {
   title: 'How It Works',
@@ -45,40 +46,19 @@ export default function InstructionsPage() {
           John 1:1-18, The Prologue.
         </p>
         <div className="border border-gray-100 dark:border-gray-800 rounded-lg overflow-hidden">
-          {[
-            {
-              track: TRACKS[0],
-              content: 'An entity called the "Word" exists eternally with God. A man named John the Baptist appears as a witness to testify about this light.',
-            },
-            {
-              track: TRACKS[1],
-              content: 'There is active rejection of the Word.',
-            },
-            {
-              track: TRACKS[2],
-              content: 'Receiving the Word is not an intellectual exercise but a personal encounter/reflection with the person Jesus.',
-            },
-            {
-              track: TRACKS[3],
-              content: 'The Greek term Logos was already familiar to philosophers like the Stoics, who used it for the rational principle that orders the universe.',
-            },
-            {
-              track: TRACKS[4],
-              content: 'Structured as a chiasm. The tone is authoritative.',
-            },
-            {
-              track: TRACKS[5],
-              content: '"In the beginning" mirrors Genesis.',
-            },
-          ].map(({ track, content }, i) => (
-            <div key={track.id} className={`flex items-stretch ${i > 0 ? 'border-t border-gray-100 dark:border-gray-800' : ''}`}>
-              <div className="w-36 flex-shrink-0 flex items-center gap-1.5 px-3 py-2 bg-gray-50 dark:bg-gray-800 border-r border-gray-100 dark:border-gray-700">
-                <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: track.dot }} />
-                <span className="text-xs font-medium text-gray-500 dark:text-gray-500">{track.label}</span>
+          {PROLOGUE_EXAMPLE.map(({ trackId, content }, i) => {
+            const track = TRACKS.find(t => t.id === trackId)
+            if (!track) return null
+            return (
+              <div key={track.id} className={`flex items-stretch ${i > 0 ? 'border-t border-gray-100 dark:border-gray-800' : ''}`}>
+                <div className="w-36 flex-shrink-0 flex items-center gap-1.5 px-3 py-2 bg-gray-50 dark:bg-gray-800 border-r border-gray-100 dark:border-gray-700">
+                  <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: track.dot }} />
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-500">{track.label}</span>
+                </div>
+                <p className="flex-1 text-base p-2.5 text-gray-600 dark:text-gray-400 leading-relaxed bg-white dark:bg-gray-900">{content}</p>
               </div>
-              <p className="flex-1 text-base p-2.5 text-gray-600 dark:text-gray-400 leading-relaxed bg-white dark:bg-gray-900">{content}</p>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </section>
 

@@ -51,6 +51,7 @@ export function useCommunity({ mode, bookId, communityScope, supabase }: Params)
       .neq('content', '')
       .order('updated_at', { ascending: false })
       .then(({ data }) => { if (data) setCommunityNotes(data) })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, bookId, communityScope])
 
   // Load community notes across all books
@@ -72,6 +73,7 @@ export function useCommunity({ mode, bookId, communityScope, supabase }: Params)
         setAllNotesHasMore(results.length === 50)
         setAllNotesLoading(false)
       })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, communityScope])
 
   // Load most-discussed passages. The route aggregates server-side (so user_id

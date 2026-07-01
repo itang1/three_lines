@@ -42,6 +42,7 @@ export function useBookmarks({ user, bookId, supabase }: Params): Result {
         setBookmarks(new Set())
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, bookId])
 
   const toggleBookmark = useCallback(async (passageRef: string) => {

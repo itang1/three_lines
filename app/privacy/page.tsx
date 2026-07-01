@@ -3,7 +3,7 @@ import Link from 'next/link'
 
 export const metadata: Metadata = {
   title: 'Privacy',
-  description: 'What Three Lines collects, why, and how to remove it. Plain language, no surprises.',
+  description: 'What Three Lines collects, why, and how to remove it.',
 }
 
 export default function PrivacyPage() {
@@ -17,7 +17,7 @@ export default function PrivacyPage() {
           <p>
             Signing in with Google sets up your account using your email and the display
             name Google provides. This is what keeps your notes saved to you and lets your
-            name appear on notes you choose to make public. Nothing else is kept.
+            name appear on notes you choose to make public.
           </p>
         </section>
 

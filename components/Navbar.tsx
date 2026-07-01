@@ -73,6 +73,7 @@ export default function Navbar() {
           }
         }
       })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
   useEffect(() => {
@@ -84,6 +85,7 @@ export default function Navbar() {
       .order('created_at', { ascending: false })
       .limit(15)
       .then(({ data }) => { if (data) setNotifications(data as InAppNotification[]) })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
   // Close notification dropdown when clicking outside

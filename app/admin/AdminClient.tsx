@@ -65,6 +65,7 @@ export default function AdminClient() {
     setState('ready')
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load() }, [])
 
   const act = async (noteId: string, action: 'remove' | 'dismiss') => {

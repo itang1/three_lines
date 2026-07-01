@@ -51,6 +51,7 @@ export function useNotes({ user, bookId, supabase, notesPublicDefault }: Params)
         })
         setChaptersWithNotes(chNums)
       })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, bookId])
 
   // Live progress: reflect notes typed in the current session before save
@@ -87,6 +88,7 @@ export function useNotes({ user, bookId, supabase, notesPublicDefault }: Params)
         setNotes(prev => ({ ...prev, ...map }))
         setNoteVisibility(prev => ({ ...prev, ...visMap }))
       })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, bookId])
 
   // Track the viewer's own note IDs (own data only — no cross-user exposure)
@@ -96,6 +98,7 @@ export function useNotes({ user, bookId, supabase, notesPublicDefault }: Params)
       .select('id')
       .eq('user_id', user.id)
       .then(({ data }) => { if (data) setMyNoteIds(new Set(data.map(n => n.id))) })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
   const handleNoteChange = (passageRef: string, trackId: string, value: string) => {

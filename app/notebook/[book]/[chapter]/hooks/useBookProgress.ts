@@ -31,6 +31,7 @@ export function useBookProgress({ user, supabase }: Params) {
         })
         setBookChapters(map)
       })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
   return bookChapters

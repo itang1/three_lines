@@ -1,5 +1,9 @@
 import Link from 'next/link'
 import { TRACKS } from '@/lib/books-index'
+import { PROLOGUE_EXAMPLE } from '@/lib/prologue-example'
+
+// A few of the worked example's lines, shown as a teaser on the landing page.
+const TEASER_TRACK_IDS = ['event', 'historical', 'comparative']
 
 export default function Home() {
   return (
@@ -7,7 +11,7 @@ export default function Home() {
 
       <div className="mb-8">
         <h1 className="text-3xl font-serif font-medium text-gray-900 dark:text-gray-100 mb-5 leading-snug">
-          Study Scripture across six lines at once
+          Study Scripture across six lines, plus your own
         </h1>
         <p className="text-base text-gray-500 dark:text-gray-400 leading-relaxed mb-8">
           Three Lines is a study notebook for reading a passage from six angles: what happens, how people respond, your own reflections, and its historical, literary, and comparative context. Free to use, and you can start reading without an account.
@@ -23,18 +27,18 @@ export default function Home() {
           A glimpse: John 1, the Prologue
         </p>
         <div className="space-y-3 mb-4">
-          {[
-            { t: TRACKS[0], note: 'The "Word" exists eternally with God. John the Baptist appears as a witness to the light.' },
-            { t: TRACKS[3], note: 'The Greek term Logos was already familiar to Stoic philosophers as the rational principle that orders the universe.' },
-            { t: TRACKS[5], note: '"In the beginning" mirrors the opening of Genesis.' },
-          ].map(({ t, note }) => (
-            <div key={t.id} className="flex gap-2.5">
-              <span className="w-1.5 h-1.5 rounded-full mt-2 flex-shrink-0" style={{ background: t.dot }} />
-              <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-                <span className="font-medium text-gray-700 dark:text-gray-300">{t.label}.</span> {note}
-              </p>
-            </div>
-          ))}
+          {PROLOGUE_EXAMPLE.filter(e => TEASER_TRACK_IDS.includes(e.trackId)).map(({ trackId, content }) => {
+            const t = TRACKS.find(tr => tr.id === trackId)
+            if (!t) return null
+            return (
+              <div key={trackId} className="flex gap-2.5">
+                <span className="w-1.5 h-1.5 rounded-full mt-2 flex-shrink-0" style={{ background: t.dot }} />
+                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                  <span className="font-medium text-gray-700 dark:text-gray-300">{t.label}.</span> {content}
+                </p>
+              </div>
+            )
+          })}
         </div>
         <Link href="/instructions" className="text-sm text-gray-900 dark:text-gray-200 underline underline-offset-2 hover:text-gray-500 dark:hover:text-gray-400">
           See the full example →

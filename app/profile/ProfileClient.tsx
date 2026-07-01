@@ -96,6 +96,7 @@ export default function ProfileClient() {
 
       setLoading(false)
     })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const saveName = async () => {

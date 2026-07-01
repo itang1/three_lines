@@ -1,7 +1,7 @@
 'use client'
 import { TRACKS, getBookMeta, type Book } from '@/lib/books-index'
 import type { User } from '@supabase/supabase-js'
-import type { SearchResult } from '../types'
+import { passageKey, type SearchResult } from '../types'
 
 type Props = {
   searchQuery: string
@@ -9,7 +9,9 @@ type Props = {
   searchResults: SearchResult[]
   user: User | null
   book: Book
+  bookId: string
   activeChapter: number
+  activeChunk: string | null
   chaptersWithNotesLive: Set<number>
   bookmarks: Set<string>
   bookmarkedChapters: Set<number>
@@ -31,7 +33,7 @@ function BookmarkRibbon({ filled }: { filled: boolean }) {
 
 export default function SidebarChapterList({
   searchQuery, searchLoading, searchResults, user,
-  book, activeChapter, chaptersWithNotesLive,
+  book, bookId, activeChapter, activeChunk, chaptersWithNotesLive,
   bookmarks, bookmarkedChapters,
   passageTexts, translation, showVerseNumbers,
   goToResult, scrollToChapter, scrollToPassage,

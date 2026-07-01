@@ -64,7 +64,7 @@ export default function NotebookClient({ book }: { book: Book }) {
   // live in a dedicated hook (see ./hooks).
   const {
     activeChapter, setActiveChapter, scrollToChapter,
-    chapterRefs, scrollContainer, bookSelectRef,
+    chapterRefs, chunkRefs, activeChunk, scrollContainer, bookSelectRef,
   } = useChapterScroll({ book, urlChapter, setTranslation })
 
   const { passageTexts, loadingPassages, retryChunk } = usePassages({
@@ -106,6 +106,7 @@ export default function NotebookClient({ book }: { book: Book }) {
           setThemeInput(profile.theme_track_label)
         }
       })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
   const toggleTrack = (id: string) => {
@@ -297,7 +298,9 @@ export default function NotebookClient({ book }: { book: Book }) {
             searchResults={searchResults}
             user={user}
             book={book}
+            bookId={bookId}
             activeChapter={activeChapter}
+            activeChunk={activeChunk}
             chaptersWithNotesLive={chaptersWithNotesLive}
             bookmarks={bookmarks}
             bookmarkedChapters={bookmarkedChapters}
@@ -477,7 +480,15 @@ export default function NotebookClient({ book }: { book: Book }) {
                   const chunkHasNotes = Object.entries(notes).some(([k, v]) => k.startsWith(`${pKey}|`) && v.trim())
 
                   return (
-                    <div key={chunk.ref} id={`passage-${pKey}`} className="mb-5 scroll-mt-24">
+                    <div
+                      key={chunk.ref}
+                      id={`passage-${pKey}`}
+                      ref={el => {
+                        if (el) chunkRefs.current?.set(pKey, el)
+                        else chunkRefs.current?.delete(pKey)
+                      }}
+                      className="mb-5 scroll-mt-24"
+                    >
 
                       {/* Passage text */}
                       <div className="border border-gray-100 dark:border-gray-800 rounded-t-lg p-4 bg-white dark:bg-gray-900">

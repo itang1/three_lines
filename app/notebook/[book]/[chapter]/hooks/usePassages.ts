@@ -72,6 +72,7 @@ export function usePassages({ book, translation, showVerseNumbers, chapterRefs }
     )
     chapterRefs.current?.forEach(el => observer.observe(el))
     return () => observer.disconnect()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookId, fetchChunk])
 
   return { passageTexts, loadingPassages, retryChunk }

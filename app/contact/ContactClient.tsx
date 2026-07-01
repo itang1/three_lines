@@ -82,7 +82,7 @@ export default function ContactClient() {
             <textarea rows={4} className={`${inputClass} resize-none`} value={form.worked} onChange={set('worked')} />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">What could be improved or is missing?</label>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">What feature could be improved or is missing?</label>
             <textarea rows={4} className={`${inputClass} resize-none`} value={form.missing} onChange={set('missing')} />
           </div>
           <div>
