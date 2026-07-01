@@ -73,7 +73,7 @@ export async function getAccessToken(): Promise<string | null> {
 
 const HEADERS: Record<'Feedback' | 'Visits', string[]> = {
   Feedback: ['Timestamp', 'Type', 'Email', 'What worked', 'What could be improved'],
-  Visits:   ['Timestamp', 'IP', 'Page', 'Country', 'City', 'Region', 'Referrer', 'User Agent'],
+  Visits:   ['Timestamp', 'IP', 'Page', 'Country', 'Region', 'City', 'Timezone', 'Language', 'Referrer', 'User Agent'],
 }
 
 // Column letter for a 1-based index (1 -> A). Header rows never exceed 26 cols.

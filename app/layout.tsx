@@ -4,9 +4,10 @@ import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import TrackVisit from '@/components/TrackVisit'
+import { SITE_URL } from '@/lib/site'
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://three-lines-sepia.vercel.app'),
+  metadataBase: new URL(SITE_URL),
   title: {
     default: 'Three Lines',
     template: '%s | Three Lines',

@@ -17,14 +17,18 @@ export async function POST(req: Request) {
 
   // Vercel sets geography headers from its edge network.
   // These are absent in local dev (fall back to null).
-  const country = req.headers.get('x-vercel-ip-country')
-  const city    = decodeVercelHeader(req.headers.get('x-vercel-ip-city'))
-  const region  = req.headers.get('x-vercel-ip-region')
+  // Region is `x-vercel-ip-country-region` (ISO subdivision), not `x-vercel-ip-region`.
+  const country  = req.headers.get('x-vercel-ip-country')
+  const region   = req.headers.get('x-vercel-ip-country-region')
+  const city     = decodeVercelHeader(req.headers.get('x-vercel-ip-city'))
+  const timezone = req.headers.get('x-vercel-ip-timezone')
+  // Preferred UI language, primary tag only (e.g. "en-US,en;q=0.9" -> "en-US").
+  const language = req.headers.get('accept-language')?.split(',')[0]?.trim() || null
 
   const ts = new Date().toISOString()
 
-  // Visits tab: Timestamp | IP | Page | Country | City | Region | Referrer | User Agent
-  await appendRow('Visits', [ts, ip, page, country, city, region, referrer, ua])
+  // Visits tab: Timestamp | IP | Page | Country | Region | City | Timezone | Language | Referrer | User Agent
+  await appendRow('Visits', [ts, ip, page, country, region, city, timezone, language, referrer, ua])
 
   return NextResponse.json({ ok: true })
 }

@@ -15,7 +15,7 @@ export default function AboutPage() {
         <p>
           I believe that any sequence of events can be retold by a new storyteller to
           instill in a listener an entirely different impression than what the
-          original storyteller intended, even when both storytellers' accounts contain
+          original storyteller intended, even when both storytellers&apos; accounts contain
           only truthful statements. Each narrator, shaped by their own peculiarities,
           experiences, dispositions, and intentions, will selectively include or exclude
           certain details, choose words that yield particular connotations, organize
