@@ -364,36 +364,35 @@ export default function NotebookClient({ book }: { book: Book }) {
               ))}
             </div>
             {mode === 'community' && (
-              <>
-                <div className="flex border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
-                  {(['book', 'all', 'top'] as const).map(s => (
-                    <button
-                      key={s}
-                      onClick={() => setCommunityScope(s)}
-                      className={`px-3 py-1.5 text-sm transition-colors ${
-                        communityScope === s
-                          ? 'bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-100'
-                          : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
-                      }`}
-                    >
-                      {s === 'book' ? 'This book' : s === 'all' ? 'Feed' : 'Top'}
-                    </button>
-                  ))}
-                </div>
+              <div className="flex border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
+                {(['book', 'all', 'top'] as const).map(s => (
+                  <button
+                    key={s}
+                    onClick={() => setCommunityScope(s)}
+                    className={`px-3 py-1.5 text-sm transition-colors ${
+                      communityScope === s
+                        ? 'bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-100'
+                        : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                    }`}
+                  >
+                    {s === 'book' ? 'This book' : s === 'all' ? 'Feed' : 'Top'}
+                  </button>
+                ))}
                 {communityScope === 'book' && (
                   <button
                     onClick={() => setFilterHasNotes(v => !v)}
                     aria-pressed={filterHasNotes}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md border transition-colors ${
+                    title="Show only passages that someone has written a note on, and hide the rest"
+                    className={`flex items-center gap-1.5 px-3 py-1.5 text-sm border-l border-gray-200 dark:border-gray-700 transition-colors ${
                       filterHasNotes
-                        ? 'bg-gray-100 border-gray-300 text-gray-900 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100'
-                        : 'border-gray-200 dark:border-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                        ? 'bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-100'
+                        : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
                     }`}
                   >
-                    Only with notes
+                    With notes
                   </button>
                 )}
-              </>
+              </div>
             )}
           </div>
         </div>
@@ -424,6 +423,12 @@ export default function NotebookClient({ book }: { book: Book }) {
               allNotesHasMore={allNotesHasMore}
               loadMoreAllNotes={loadMoreAllNotes}
               goToPassage={goToPassage}
+              openThreads={openThreads}
+              replies={replies}
+              toggleThread={toggleThread}
+              replyText={replyText}
+              setReplyText={setReplyText}
+              postReply={postReply}
             />
           )}
 

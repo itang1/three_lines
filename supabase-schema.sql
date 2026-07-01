@@ -28,7 +28,9 @@ create table if not exists comments (
   passage_ref text not null,
   track_id text not null,
   content text not null,
-  parent_id uuid references comments(id) on delete cascade,
+  -- Polymorphic: holds a notes.id when replying to a community note, or a
+  -- comments.id for a nested reply. It therefore cannot be a foreign key.
+  parent_id uuid,
   created_at timestamptz default now()
 );
 
@@ -116,6 +118,11 @@ alter table notes add constraint notes_content_length
 alter table comments drop constraint if exists comments_content_length;
 alter table comments add constraint comments_content_length
   check (char_length(content) <= 5000) not valid;
+
+-- parent_id is polymorphic (a notes.id when replying to a note, or a comments.id
+-- for a nested reply), so the old foreign key to comments(id) made every reply to
+-- a note fail. Drop it on existing databases.
+alter table comments drop constraint if exists comments_parent_id_fkey;
 
 -- Indexes
 

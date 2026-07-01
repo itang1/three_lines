@@ -7,9 +7,10 @@ export default function LoginClient() {
   const [devLoading, setDevLoading] = useState(false)
   const [callbackError, setCallbackError] = useState('')
   const [email, setEmail] = useState('')
-  const [linkLoading, setLinkLoading] = useState(false)
-  const [linkSent, setLinkSent] = useState(false)
-  const [linkError, setLinkError] = useState('')
+  const [password, setPassword] = useState('')
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin')
+  const [pwLoading, setPwLoading] = useState(false)
+  const [pwError, setPwError] = useState('')
   const supabase = createClient()
 
   useEffect(() => {
@@ -25,18 +26,22 @@ export default function LoginClient() {
     })
   }
 
-  const signInWithEmail = async (e: React.FormEvent) => {
+  const signInWithPassword = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLinkError('')
-    setLinkSent(false)
-    setLinkLoading(true)
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: `${location.origin}/notebook` },
-    })
-    setLinkLoading(false)
-    if (error) { setLinkError(error.message); return }
-    setLinkSent(true)
+    setPwError('')
+    setPwLoading(true)
+    const { data, error } = mode === 'signup'
+      ? await supabase.auth.signUp({ email, password })
+      : await supabase.auth.signInWithPassword({ email, password })
+    setPwLoading(false)
+    if (error) { setPwError(error.message); return }
+    // With "Confirm email" disabled in Supabase, signUp returns a session
+    // immediately. If it doesn't, confirmation is still on for this project.
+    if (!data.session) {
+      setPwError('Check your email to confirm your account, then sign in.')
+      return
+    }
+    window.location.href = '/notebook'
   }
 
   const signInAsGuest = async () => {
@@ -103,34 +108,45 @@ export default function LoginClient() {
         <span className="flex-1 h-px bg-gray-100 dark:bg-gray-800" />
       </div>
 
-      {linkSent ? (
-        <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800/30 rounded-md text-sm text-green-700 dark:text-green-400">
-          Check your email. I sent a sign-in link to <span className="font-medium">{email}</span>.
-          Open it on this device to continue.
-        </div>
-      ) : (
-        <form onSubmit={signInWithEmail} className="space-y-3">
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            className="w-full border border-gray-200 dark:border-gray-700 rounded-md px-3 py-2.5 text-sm outline-none focus:border-gray-400 dark:focus:border-gray-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-          />
+      <form onSubmit={signInWithPassword} className="space-y-3">
+        <input
+          type="email"
+          required
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          placeholder="you@example.com"
+          autoComplete="email"
+          className="w-full border border-gray-200 dark:border-gray-700 rounded-md px-3 py-2.5 text-sm outline-none focus:border-gray-400 dark:focus:border-gray-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+        />
+        <input
+          type="password"
+          required
+          minLength={6}
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          placeholder="Password"
+          autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+          className="w-full border border-gray-200 dark:border-gray-700 rounded-md px-3 py-2.5 text-sm outline-none focus:border-gray-400 dark:focus:border-gray-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+        />
+        <button
+          type="submit"
+          disabled={pwLoading}
+          className="w-full border border-gray-200 dark:border-gray-700 rounded-md px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50"
+        >
+          {pwLoading ? 'Please wait…' : mode === 'signup' ? 'Create account' : 'Sign in with email'}
+        </button>
+        {pwError && <p className="text-xs text-red-500">{pwError}</p>}
+        <p className="text-xs text-gray-400 dark:text-gray-500">
+          {mode === 'signup' ? 'Already have an account? ' : 'New here? '}
           <button
-            type="submit"
-            disabled={linkLoading}
-            className="w-full border border-gray-200 dark:border-gray-700 rounded-md px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50"
+            type="button"
+            onClick={() => { setMode(mode === 'signup' ? 'signin' : 'signup'); setPwError('') }}
+            className="text-gray-900 dark:text-gray-200 underline underline-offset-2 hover:text-gray-500 dark:hover:text-gray-400"
           >
-            {linkLoading ? 'Sending…' : 'Email me a sign-in link'}
+            {mode === 'signup' ? 'Sign in' : 'Create one'}
           </button>
-          <p className="text-xs text-gray-400 dark:text-gray-500">
-            No password, no Google account needed. I email you a one-time link.
-          </p>
-          {linkError && <p className="text-xs text-red-500">{linkError}</p>}
-        </form>
-      )}
+        </p>
+      </form>
     </div>
   )
 }

@@ -13,6 +13,12 @@ export default function AboutPage() {
       <div className="space-y-5 text-base text-gray-600 dark:text-gray-400 leading-relaxed">
 
         <p>
+          Three Lines is a tool for studying Scripture across several lines of inquiry: what happens in a
+          passage, how those in the scene respond, your own commentary, and the historical, literary,
+          comparative context around it, and more. It grew out of a conviction about how narratives get framed by whoever is speaking.
+        </p>
+
+        <p>
           I believe that any sequence of events can be retold by a new storyteller to
           instill in a listener an entirely different impression than what the
           original storyteller intended, even when both storytellers&apos; accounts contain
@@ -27,8 +33,8 @@ export default function AboutPage() {
         </p>
 
         <p>
-          Built upon that conviction, this website is a tool for examining more than the
-          narration itself. The name, Three Lines, is drawn from <a href="https://en.wikipedia.org/wiki/Earl_Palmer" target="_blank" rel="noopener noreferrer" className="text-gray-900 dark:text-gray-200 underline underline-offset-2 hover:text-gray-500 dark:hover:text-gray-400">Rev. Dr. Earl Palmer</a>,
+          Built upon that conviction, Three Lines examines more than the
+          narration itself. The name is drawn from <a href="https://en.wikipedia.org/wiki/Earl_Palmer" target="_blank" rel="noopener noreferrer" className="text-gray-900 dark:text-gray-200 underline underline-offset-2 hover:text-gray-500 dark:hover:text-gray-400">Rev. Dr. Earl Palmer</a>,
           who proposed the note-taking method of tracking a passage along three lines
           of inquiry: what happens, how those in the scene respond, and one&apos;s own personal
           commentary on it. Additional layers come from <a href="https://en.wikipedia.org/wiki/Bart_D._Ehrman" target="_blank" rel="noopener noreferrer" className="text-gray-900 dark:text-gray-200 underline underline-offset-2 hover:text-gray-500 dark:hover:text-gray-400">Bart Ehrman</a>&apos;s textbook, <em>The New Testament: A Historical Introduction to the Early Christian Writings</em>,
@@ -37,6 +43,11 @@ export default function AboutPage() {
           analysis, redaction criticism, genre identification, and thematic examination).
           This website collects these lenses into a tool to help us examine not
           just <em>what</em> the text says, but also <em>when</em>, <em>why</em>, <em>by whom</em>, <em>how</em>, and <em>alongside what else</em>.
+        </p>
+
+        <p>
+          These lines are tools to give you more ways to scrutinize a
+          passage and not to push you toward any one conclusion. Use them in accompaniment to whatever tradition you bring to your reading.
         </p>
 
         <p>

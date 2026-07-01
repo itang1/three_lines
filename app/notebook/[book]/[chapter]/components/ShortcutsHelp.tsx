@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 
 // Keyboard shortcuts live in useChapterScroll. This component documents them:
 // a "?" trigger button plus a "?" key that opens the same overlay. Desktop only,
@@ -37,7 +38,7 @@ export default function ShortcutsHelp() {
         ?
       </button>
 
-      {open && (
+      {open && createPortal(
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 dark:bg-black/50 px-4"
           onClick={() => setOpen(false)}
@@ -70,7 +71,8 @@ export default function ShortcutsHelp() {
               ))}
             </dl>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )

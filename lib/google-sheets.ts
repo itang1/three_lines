@@ -72,7 +72,7 @@ export async function getAccessToken(): Promise<string | null> {
 }
 
 const HEADERS: Record<'Feedback' | 'Visits', string[]> = {
-  Feedback: ['Timestamp', 'Type', 'Email', 'What worked', 'What could be improved'],
+  Feedback: ['Timestamp', 'Email', 'What worked', 'What could be improved', 'Anything else', 'IP', 'Country', 'Region', 'City', 'Timezone', 'Language', 'Page', 'Referrer', 'Session duration', 'Screen', 'Viewport', 'User Agent'],
   Visits:   ['Timestamp', 'IP', 'Page', 'Country', 'Region', 'City', 'Timezone', 'Language', 'Referrer', 'User Agent'],
 }
 

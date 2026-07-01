@@ -3,7 +3,7 @@ import ContactClient from './ContactClient'
 
 export const metadata: Metadata = {
   title: 'Contact',
-  description: 'Questions, comments, feedback? I read every note personally.',
+  description: 'Questions, comments, or feedback about Three Lines.',
 }
 
 export default function ContactPage() {

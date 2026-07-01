@@ -1,11 +1,19 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { SITE_URL } from '@/lib/site'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-)
+// Created lazily so a missing env var fails a request rather than throwing at
+// import time and breaking the build.
+let _supabase: SupabaseClient | null = null
+function getSupabase(): SupabaseClient {
+  if (!_supabase) {
+    _supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    )
+  }
+  return _supabase
+}
 
 const RATE_LIMIT_PER_HOUR = 20
 
@@ -13,7 +21,7 @@ export async function POST(req: Request) {
   const token = req.headers.get('Authorization')?.replace('Bearer ', '')
   if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+  const { data: { user }, error: authError } = await getSupabase().auth.getUser(token)
   if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json().catch(() => null)
@@ -34,7 +42,7 @@ export async function POST(req: Request) {
 
   // Rate limit: max RATE_LIMIT_PER_HOUR comments per user per hour
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
-  const { count } = await supabase
+  const { count } = await getSupabase()
     .from('comments')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', user.id)
@@ -44,7 +52,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
   }
 
-  const { data: inserted, error: insertError } = await supabase.from('comments').insert({
+  const { data: inserted, error: insertError } = await getSupabase().from('comments').insert({
     user_id: user.id,
     passage_ref,
     track_id,
@@ -69,14 +77,14 @@ async function createInAppNotification(
   commentId: string,
 ) {
   // parent_id is the ID of a note in the `notes` table
-  const { data: note } = await supabase.from('notes')
+  const { data: note } = await getSupabase().from('notes')
     .select('user_id')
     .eq('id', parentNoteId)
     .single()
 
   if (!note || note.user_id === replierId) return
 
-  await supabase.from('notifications').insert({
+  await getSupabase().from('notifications').insert({
     user_id: note.user_id,
     comment_id: commentId,
     passage_ref: passageRef,
@@ -95,7 +103,7 @@ async function notifyReplyAuthor(
     return
   }
 
-  const { data: parent } = await supabase
+  const { data: parent } = await getSupabase()
     .from('comments')
     .select('user_id, content')
     .eq('id', parentId)
@@ -104,8 +112,8 @@ async function notifyReplyAuthor(
   if (!parent || parent.user_id === replierId) return
 
   const [{ data: { user: parentUser } }, { data: replierProfile }] = await Promise.all([
-    supabase.auth.admin.getUserById(parent.user_id),
-    supabase.from('profiles').select('display_name').eq('id', replierId).single(),
+    getSupabase().auth.admin.getUserById(parent.user_id),
+    getSupabase().from('profiles').select('display_name').eq('id', replierId).single(),
   ])
 
   if (!parentUser?.email) return

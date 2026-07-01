@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 export default function InstructionsPage() {
   return (
     <div className="max-w-xl mx-auto px-6 py-16">
-      <h1 className="text-3xl font-serif font-medium text-gray-900 dark:text-gray-100 mb-3">Instructions</h1>
+      <h1 className="text-3xl font-serif font-medium text-gray-900 dark:text-gray-100 mb-3">How it works</h1>
       <p className="text-base text-gray-500 dark:text-gray-400 mb-10 leading-relaxed">
         Each passage has lines beneath it for you to write in. You do not have to fill every line; just focus on the lines that are most useful to you. You can also toggle lines on and off to reduce visual clutter.
       </p>
@@ -26,6 +26,16 @@ export default function InstructionsPage() {
               </div>
             </div>
           ))}
+          {/* The user's optional custom line (THEME_DOT = #0891B2). */}
+          <div className="flex gap-3">
+            <span className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{ background: '#0891B2' }} />
+            <div>
+              <p className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">Your own line</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                You can also add a line of your own. Name it for whatever you want to follow, such as a recurring theme, a question you are tracking, or a word study, and it appears alongside the others on every passage.
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -75,7 +85,7 @@ export default function InstructionsPage() {
       <section className="mb-10">
         <h2 className="text-xs font-semibold tracking-widest uppercase text-gray-400 dark:text-gray-500 mb-4">Community</h2>
         <p className="text-base text-gray-600 dark:text-gray-400 leading-relaxed">
-          Switch to Community mode to read what other users have written in their notebooks for the same passage. You can reply to anyone&apos;s note. Your own notes are shared with the community by default once you sign in.
+          Switch to Community mode to read what other users have written in their notebooks for the same passage. You can reply to anyone&apos;s note.
         </p>
       </section>
 
