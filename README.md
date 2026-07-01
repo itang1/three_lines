@@ -8,7 +8,7 @@ Live at **[three-lines-sepia.vercel.app](https://three-lines-sepia.vercel.app)**
 
 ## The six lines
 
-Each passage has six lines to write in. You don't have to fill every line -- just the ones that are useful to you.
+Each passage has six lines to write in (plus an option to add your own). You don't have to fill every line and you can just use the ones that are useful to you.
 
 | Line | What it's for |
 |---|---|
@@ -18,6 +18,7 @@ Each passage has six lines to write in. You don't have to fill every line -- jus
 | Historical context | World behind the text: circumstances, authorship, original audience |
 | Literary observation | World within the text: structure, tone, imagery, genre |
 | Connections to other texts | Parallel accounts, earlier Scripture, cross-cultural motifs |
+| Add your own line | Add a line of your own to trace |
 
 The name comes from [Rev. Dr. Earl Palmer](https://en.wikipedia.org/wiki/Earl_Palmer)'s three-line note-taking method. The additional lenses draw from Bart Ehrman's *The New Testament: A Historical Introduction to the Early Christian Writings*.
 
