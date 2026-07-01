@@ -6,6 +6,10 @@ export default function LoginClient() {
   const [devError, setDevError] = useState('')
   const [devLoading, setDevLoading] = useState(false)
   const [callbackError, setCallbackError] = useState('')
+  const [email, setEmail] = useState('')
+  const [linkLoading, setLinkLoading] = useState(false)
+  const [linkSent, setLinkSent] = useState(false)
+  const [linkError, setLinkError] = useState('')
   const supabase = createClient()
 
   useEffect(() => {
@@ -19,6 +23,20 @@ export default function LoginClient() {
       provider: 'google',
       options: { redirectTo: `${location.origin}/notebook` }
     })
+  }
+
+  const signInWithEmail = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLinkError('')
+    setLinkSent(false)
+    setLinkLoading(true)
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: `${location.origin}/notebook` },
+    })
+    setLinkLoading(false)
+    if (error) { setLinkError(error.message); return }
+    setLinkSent(true)
   }
 
   const signInAsGuest = async () => {
@@ -43,8 +61,10 @@ export default function LoginClient() {
   return (
     <div className="max-w-sm mx-auto px-6 py-20">
       <h1 className="text-2xl font-serif font-medium text-gray-900 dark:text-gray-100 mb-2">Sign in</h1>
-      <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">
-        Create an account to save your notes and share commentary with others.
+      <p className="text-sm text-gray-500 dark:text-gray-400 mb-8 leading-relaxed">
+        Save your notes and study alongside the community. Notes are shared by default so everyone
+        can learn from one another, and you can make any note private in one click. All that&apos;s stored is
+        your email and display name.
       </p>
 
       {process.env.NODE_ENV === 'development' && (
@@ -76,6 +96,41 @@ export default function LoginClient() {
         </svg>
         Continue with Google
       </button>
+
+      <div className="flex items-center gap-3 my-5" aria-hidden="true">
+        <span className="flex-1 h-px bg-gray-100 dark:bg-gray-800" />
+        <span className="text-xs text-gray-400 dark:text-gray-500">or</span>
+        <span className="flex-1 h-px bg-gray-100 dark:bg-gray-800" />
+      </div>
+
+      {linkSent ? (
+        <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800/30 rounded-md text-sm text-green-700 dark:text-green-400">
+          Check your email. I sent a sign-in link to <span className="font-medium">{email}</span>.
+          Open it on this device to continue.
+        </div>
+      ) : (
+        <form onSubmit={signInWithEmail} className="space-y-3">
+          <input
+            type="email"
+            required
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            className="w-full border border-gray-200 dark:border-gray-700 rounded-md px-3 py-2.5 text-sm outline-none focus:border-gray-400 dark:focus:border-gray-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+          />
+          <button
+            type="submit"
+            disabled={linkLoading}
+            className="w-full border border-gray-200 dark:border-gray-700 rounded-md px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50"
+          >
+            {linkLoading ? 'Sending…' : 'Email me a sign-in link'}
+          </button>
+          <p className="text-xs text-gray-400 dark:text-gray-500">
+            No password, no Google account needed. I email you a one-time link.
+          </p>
+          {linkError && <p className="text-xs text-red-500">{linkError}</p>}
+        </form>
+      )}
     </div>
   )
 }
