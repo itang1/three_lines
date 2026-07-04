@@ -156,8 +156,8 @@ at module scope with non-null assertions. Meanwhile `app/api/comment/route.ts:8`
 
 ### NIT-level
 
-- **Dead file:** `docs/index.html` is a static meta-refresh redirect stub to the Vercel URL, unrelated to the Next.js app. If GitHub Pages is not in use, remove it to avoid a second, stale entry point.
-- **Hardcoded values:** `SPREADSHEET_ID` (`lib/google-sheets.ts:13`) and the Resend `from` address `onboarding@resend.dev` (`app/api/comment/route.ts:133`) are literals. Move to env for portability; the Resend sandbox sender will not deliver to arbitrary recipients in production.
+- **Dead file:** `docs/index.html` is a static meta-refresh redirect stub to the Vercel URL, unrelated to the Next.js app. If GitHub Pages is not in use, remove it to avoid a second, stale entry point. (Still present; confirm Pages is unused first.)
+- **Hardcoded values (fixed):** `SPREADSHEET_ID` and the Resend `from` address are now overridable via `GOOGLE_SHEETS_ID` / `RESEND_FROM` with fallbacks.
 - **ESLint `exhaustive-deps` disabled widely** across hooks. Each suppression is defensible individually, but the blanket pattern hides genuine stale-closure risks. Consider annotating why per case, or refactoring the effects.
 - **Test coverage is thin:** only `lib/data.test.ts` and `lib/passage-ref.test.ts`. The security-sensitive surface (rate limiting, auth gating, RLS assumptions) has no tests.
 - **`clientIp` returns the literal `'unknown'`** as a shared bucket, so all header-less callers share one rate-limit counter. Fine, but note it in local dev.
@@ -168,7 +168,7 @@ at module scope with non-null assertions. Meanwhile `app/api/comment/route.ts:8`
 
 - Server/client data split for the Bible dataset is exemplary and is the reason this app scales on the client.
 - RLS is enabled on every table, with a documented "no policy = service-role only" convention for `rate_limits` and `notifications`.
-- The rate limiter is backed by an atomic `SECURITY DEFINER` Postgres function with row locking (`check_rate_limit`, `supabase-schema.sql:166`), correctly surviving serverless cold starts. The **only** weakness is the spoofable key (HIGH-1), not the mechanism.
+- The rate limiter is backed by an atomic `SECURITY DEFINER` Postgres function with row locking (`check_rate_limit`, `supabase-schema.sql:166`), correctly surviving serverless cold starts. Its one weakness was the spoofable key (HIGH-1), now fixed; the mechanism itself was always sound.
 - Aggregations that must not leak `user_id` (`top_passages`) run server-side in the DB and are enriched with server-only pericope data in the route.
 - Input validation in `/api/contact` and `/api/comment` is careful (type checks before string methods, length caps, honeypot field, email regex).
 - CDN cache headers are set deliberately per route with sensible `stale-while-revalidate` windows.
@@ -180,24 +180,30 @@ at module scope with non-null assertions. Meanwhile `app/api/comment/route.ts:8`
 
 Do them in this order.
 
-Already fixed and committed to the codebase (re-run `supabase-schema.sql` in the Supabase SQL editor to apply the DB-side changes):
+### Done and committed
+
+DB-layer (re-run `supabase-schema.sql` in the Supabase SQL editor to apply):
 - Admin self-promotion via the `profiles` UPDATE policy (column-scoped grants + guard trigger).
 - Bypassable `comments` insert policy (removed; writes go only through the service-role route).
 - Over-broad `profiles` read policy (column-scoped read grants + `get_my_profile()` RPC; client own-profile reads moved to the RPC).
 - `comment_likes` liker-identity exposure (own-rows-only select policy + `reply_like_counts()` aggregate RPC; `loadReplies` updated).
 
-Remaining:
+Code (already live on `main`):
+- **HIGH:** rate limiting rekeyed onto `x-real-ip` with a rightmost-XFF fallback (`lib/rate-limit.ts`), covered by `lib/rate-limit.test.ts`.
+- **MEDIUM:** service-role client consolidated into `lib/supabase-admin.ts` (replaces five module-level clients + two duplicated lazy getters).
+- **MEDIUM (partial):** Sheets header check cached per container so it no longer round-trips on every log write. Fully moving logging off the response path is deferred (see below).
+- **NIT:** `GOOGLE_SHEETS_ID` and `RESEND_FROM` env overrides (with fallbacks); `vitest.config.ts` `@/*` alias.
 
-| # | Severity | Action | Effort | File(s) |
+### Remaining
+
+| # | Severity | Action | Effort | Why not yet |
 |---|---|---|---|---|
-| 1 | HIGH | Rekey rate limiting on `x-real-ip` (or rightmost XFF) | S | `lib/rate-limit.ts:18` |
-| 2 | MEDIUM | Move Sheets logging off the request path (202 + fire-and-forget, or a queue/table) | M | `app/api/track/route.ts`, `app/api/contact/route.ts`, `lib/google-sheets.ts` |
-| 3 | MEDIUM | Consolidate service-role client into one lazy `lib/supabase-admin.ts` | S | 5 route files |
-| 4 | LOW | Shared profile context to dedupe fetches | S | `Navbar`, `NotebookClient`, `ProfileClient` |
-| 5 | LOW | Nonce-based CSP; drop `unsafe-inline` for scripts | M | `app/layout.tsx`, `next.config.js` |
-| 6 | LOW | Fail-closed (or low static cap) for `/api/passage` when the limiter errors | S | `lib/rate-limit.ts`, `app/api/passage/route.ts` |
-| 7 | LOW | `parent_type` discriminator to replace polymorphic double-lookup | M | `supabase-schema.sql`, `app/api/comment/route.ts` |
-| 8 | NIT | Remove `docs/index.html`; move `SPREADSHEET_ID` and Resend sender to env; add tests for auth/rate-limit gating | S-M | various |
+| 1 | MEDIUM | Fully move Sheets logging off the request path | M | Needs Next's `after()` (added after 14.2.3) or a queue. Header-cache mitigation already shipped. |
+| 2 | LOW | Shared profile context to dedupe the 3 `get_my_profile` fetches | S | Marginal win; a shared provider must also handle post-mutation refresh, which needs runtime verification. |
+| 3 | LOW | Nonce-based CSP; drop `unsafe-inline` for scripts | M | Site-wide header change that can break the inline theme script and Next's inline styles; must be verified against a running deploy. |
+| 4 | LOW | Fail-closed (or low static cap) for `/api/passage` when the limiter errors | S | **Deliberately kept fail-open.** Fail-closed would make Supabase a hard dependency of the core reading path; a Supabase blip would break all passage loads. CDN caching already absorbs most quota risk. |
+| 5 | LOW | `parent_type` discriminator to replace the polymorphic double-lookup | M | Requires a data backfill of existing `comments.parent_id` rows, which cannot be verified without the live DB. |
+| 6 | NIT | Remove `docs/index.html`; broaden route/auth tests | S-M | `docs/index.html` may back a GitHub Pages redirect; confirm Pages is unused before deleting. Route tests need Supabase mocking. |
 
 Effort: S = under an hour, M = a few hours.
 
@@ -205,4 +211,4 @@ Effort: S = under an hour, M = a few hours.
 
 ## 5. Bottom line
 
-The application is not "vibe-coded." It shows deliberate architecture: correct client/server data partitioning, real DB-backed rate limiting, RLS on every table, and careful input validation. All four database-layer security findings (admin self-promotion, bypassable comment inserts, over-broad profile reads, and liker-identity exposure) are now closed in code; re-run `supabase-schema.sql` to apply the DB side. The highest-value remaining fix is the spoofable rate-limit key (item 1). Everything after that is optimization and hygiene, not firefighting.
+The application is not "vibe-coded." It shows deliberate architecture: correct client/server data partitioning, real DB-backed rate limiting, RLS on every table, and careful input validation. All four database-layer security findings (admin self-promotion, bypassable comment inserts, over-broad profile reads, liker-identity exposure) plus the spoofable rate-limit key and the service-client consolidation are now fixed in code. What remains is optimization and hygiene, each deferred for a specific reason above (needs a newer Next API, a data backfill, or runtime verification), not firefighting.
