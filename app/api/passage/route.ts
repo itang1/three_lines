@@ -1,17 +1,12 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { clientIp, rateLimit } from '@/lib/rate-limit'
 import { toApiBiblePassageId } from '@/lib/passage-ref'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 // GET /api/passage?book=john&chapter=1&ref=John+1:1-18&translation=ESV
 //
 // ESV  -> Crossway API, fetched fresh every request (no local storage per their terms)
 // All others -> API.Bible, cached in Supabase passages table, refreshed every 30 days
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-)
 
 // API.Bible Bible IDs — find more at https://scripture.api.bible/lifechange/bibles
 const BIBLE_API_IDS: Record<string, string> = {
@@ -89,6 +84,7 @@ export async function GET(req: Request) {
   }
 
   // All other translations, verse numbers off: check Supabase cache first
+  const supabase = supabaseAdmin()
   const { data: cached } = await supabase
     .from('passages')
     .select('text, fetched_at')

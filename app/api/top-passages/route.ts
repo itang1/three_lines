@@ -1,16 +1,11 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { getBook, getChapter } from '@/lib/data'
 import { clientIp, rateLimit } from '@/lib/rate-limit'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 // Aggregates the most-discussed passages and enriches each with display info
 // (book name, ESV ref, pericope). The enrichment uses lib/data, which is
 // server-only, so the full pericope dataset never reaches the browser.
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-)
 
 // The leaderboard does not need to be real-time; cache at the edge and serve
 // stale while revalidating so the aggregation RPC isn't run on every hit.
@@ -22,7 +17,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
   }
 
-  const { data, error } = await supabase.rpc('top_passages', { p_limit: 30 })
+  const { data, error } = await supabaseAdmin().rpc('top_passages', { p_limit: 30 })
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }

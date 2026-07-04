@@ -1,16 +1,12 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-)
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 // Resolves the request to an admin user, or null if not authorized.
 async function requireAdmin(req: Request) {
   const token = req.headers.get('Authorization')?.replace('Bearer ', '')
   if (!token) return null
 
+  const supabase = supabaseAdmin()
   const { data: { user }, error } = await supabase.auth.getUser(token)
   if (error || !user) return null
 
@@ -27,6 +23,7 @@ export async function GET(req: Request) {
   const admin = await requireAdmin(req)
   if (!admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
+  const supabase = supabaseAdmin()
   const { data, error } = await supabase
     .from('reports')
     .select(`
@@ -51,6 +48,7 @@ export async function POST(req: Request) {
   const { action, note_id } = await req.json().catch(() => ({}))
   if (!note_id) return NextResponse.json({ error: 'Missing note_id' }, { status: 400 })
 
+  const supabase = supabaseAdmin()
   if (action === 'remove') {
     // Deleting the note cascades to its reports.
     const { error } = await supabase.from('notes').delete().eq('id', note_id)

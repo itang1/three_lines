@@ -1,19 +1,6 @@
 import { NextResponse } from 'next/server'
-import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { SITE_URL } from '@/lib/site'
-
-// Created lazily so a missing env var fails a request rather than throwing at
-// import time and breaking the build.
-let _supabase: SupabaseClient | null = null
-function getSupabase(): SupabaseClient {
-  if (!_supabase) {
-    _supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    )
-  }
-  return _supabase
-}
+import { supabaseAdmin as getSupabase } from '@/lib/supabase-admin'
 
 const RATE_LIMIT_PER_HOUR = 20
 
