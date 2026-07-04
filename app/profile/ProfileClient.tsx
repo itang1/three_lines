@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { useProfile } from '@/components/ProfileProvider'
 import { TRACKS, getBookMeta } from '@/lib/books-index'
 import { buildPlainText, buildMarkdown, downloadFile } from '@/lib/exportNotes'
 
@@ -32,6 +33,7 @@ function relativeDate(iso: string | null): string {
 export default function ProfileClient() {
   const router = useRouter()
   const supabase = createClient()
+  const { profile, updateProfile } = useProfile()
 
   const [loading, setLoading] = useState(true)
   const [displayName, setDisplayName] = useState('')
@@ -51,8 +53,9 @@ export default function ProfileClient() {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.replace('/login'); return }
 
-      const [{ data: profileRows }, { data: notes }, { data: recent }] = await Promise.all([
-        supabase.rpc('get_my_profile'),
+      // Profile fields come from the shared ProfileProvider (see the effect
+      // below); here we only load the notes-derived stats and recent list.
+      const [{ data: notes }, { data: recent }] = await Promise.all([
         supabase.from('notes')
           .select('passage_ref')
           .eq('user_id', user.id)
@@ -64,13 +67,6 @@ export default function ProfileClient() {
           .order('updated_at', { ascending: false })
           .limit(50),
       ])
-
-      const profile = profileRows?.[0]
-      if (profile) {
-        setDisplayName(profile.display_name)
-        setNameInput(profile.display_name)
-        setNotesPublicDefault(profile.notes_public_default ?? true)
-      }
 
       if (notes) {
         const passages = new Set(notes.map(n => n.passage_ref))
@@ -97,6 +93,16 @@ export default function ProfileClient() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Seed the editable fields from the shared profile once it loads.
+  useEffect(() => {
+    if (profile) {
+      setDisplayName(profile.display_name)
+      setNameInput(profile.display_name)
+      setNotesPublicDefault(profile.notes_public_default ?? true)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile])
+
   const saveName = async () => {
     const name = nameInput.trim()
     if (!name || name === displayName) return
@@ -105,6 +111,7 @@ export default function ProfileClient() {
     if (user) {
       await supabase.from('profiles').update({ display_name: name }).eq('id', user.id)
       setDisplayName(name)
+      updateProfile({ display_name: name })
       setNameSaved(true)
       setTimeout(() => setNameSaved(false), 2000)
     }
@@ -122,6 +129,7 @@ export default function ProfileClient() {
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
       await supabase.from('profiles').update({ notes_public_default: val }).eq('id', user.id)
+      updateProfile({ notes_public_default: val })
     }
   }
 

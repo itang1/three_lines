@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useRouter, useParams, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { useUser } from '@/lib/useUser'
+import { useProfile } from '@/components/ProfileProvider'
 import { TRACKS, type Book } from '@/lib/books-index'
 import {
   THEME_DOT, passageKey,
@@ -37,6 +38,7 @@ export default function NotebookClient({ book }: { book: Book }) {
   const urlChapter = typeof params.chapter === 'string' ? Math.max(1, parseInt(params.chapter) || 1) : 1
 
   const user = useUser()
+  const { profile } = useProfile()
 
   // UI
   const [mode, setMode]                         = useState<Mode>('study')
@@ -98,21 +100,17 @@ export default function NotebookClient({ book }: { book: Book }) {
 
   const bookChapters = useBookProgress({ user, supabase })
 
-  // Load profile preferences once the user is known
+  // Seed preferences from the shared profile once it loads.
   useEffect(() => {
-    if (!user) return
-    supabase.rpc('get_my_profile')
-      .then(({ data }) => {
-        const profile = data?.[0]
-        if (profile?.preferred_translation) setTranslation(profile.preferred_translation)
-        if (profile?.notes_public_default != null) setNotesPublicDefault(profile.notes_public_default)
-        if (profile?.theme_track_label) {
-          setThemeLabel(profile.theme_track_label)
-          setThemeInput(profile.theme_track_label)
-        }
-      })
+    if (!profile) return
+    if (profile.preferred_translation) setTranslation(profile.preferred_translation)
+    if (profile.notes_public_default != null) setNotesPublicDefault(profile.notes_public_default)
+    if (profile.theme_track_label) {
+      setThemeLabel(profile.theme_track_label)
+      setThemeInput(profile.theme_track_label)
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user])
+  }, [profile])
 
   const toggleTrack = (id: string) => {
     setActiveTracks(prev => {

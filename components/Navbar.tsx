@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useUser } from '@/lib/useUser'
 import { useTheme } from '@/components/ThemeProvider'
+import { useProfile } from '@/components/ProfileProvider'
 import { getBookMeta } from '@/lib/books-index'
 
 type InAppNotification = {
@@ -73,10 +74,11 @@ function NavLink({
 
 export default function Navbar() {
   const user = useUser()
+  const { profile, updateProfile } = useProfile()
+  const displayName = profile?.display_name ?? null
+  const isAdmin = !!profile?.is_admin
   const pathname = usePathname()
   const [menuOpen, setMenuOpen] = useState(false)
-  const [displayName, setDisplayName] = useState<string | null>(null)
-  const [isAdmin, setIsAdmin] = useState(false)
   const [showNamePrompt, setShowNamePrompt] = useState(false)
   const [nameInput, setNameInput] = useState('')
   const [nameSaving, setNameSaving] = useState(false)
@@ -90,26 +92,13 @@ export default function Navbar() {
 
   const unreadCount = notifications.filter(n => !n.read).length
 
+  // Prompt for a display name once the shared profile loads as still-Anonymous.
   useEffect(() => {
-    if (!user) { setDisplayName(null); setIsAdmin(false); setNotifications([]); return }
-    // get_my_profile returns the caller's own row only; is_admin and preferences
-    // are no longer client-readable off the base profiles table.
-    supabase.rpc('get_my_profile')
-      .then(({ data }) => {
-        const profile = data?.[0]
-        if (profile) {
-          setDisplayName(profile.display_name)
-          setIsAdmin(!!profile.is_admin)
-          if (profile.display_name === 'Anonymous') {
-            setShowNamePrompt(true)
-          }
-        }
-      })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user])
+    if (profile?.display_name === 'Anonymous') setShowNamePrompt(true)
+  }, [profile?.display_name])
 
   useEffect(() => {
-    if (!user) return
+    if (!user) { setNotifications([]); return }
     supabase
       .from('notifications')
       .select('id, passage_ref, read, created_at, comment_id, comments(parent_id, profiles(display_name))')
@@ -180,7 +169,7 @@ export default function Navbar() {
     if (!name || !user) return
     setNameSaving(true)
     await supabase.from('profiles').update({ display_name: name }).eq('id', user.id)
-    setDisplayName(name)
+    updateProfile({ display_name: name })
     setShowNamePrompt(false)
     setNameSaving(false)
   }
