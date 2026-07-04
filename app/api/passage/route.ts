@@ -54,7 +54,9 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
   const ip = clientIp(req)
-  if (!(await rateLimit(`passage:${ip}`, 240, 60))) {
+  // Fail closed: this route guards the paid ESV / API.Bible quota, so if the
+  // limiter itself is unavailable we would rather reject than let it be drained.
+  if (!(await rateLimit(`passage:${ip}`, 240, 60, { failClosed: true }))) {
     return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
   }
 

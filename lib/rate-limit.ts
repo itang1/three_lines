@@ -20,13 +20,20 @@ export function clientIp(req: Request): string {
 }
 
 // Returns true if the call is within the limit, false if it should be blocked.
-// Fails open on infra error so a transient DB blip doesn't take the route down.
-export async function rateLimit(key: string, max: number, windowSeconds: number): Promise<boolean> {
+// On an infra error it fails open by default (a transient DB blip shouldn't take
+// a route down). Callers guarding a paid external quota can pass
+// { failClosed: true } so a limiter outage cannot be used to drain that quota.
+export async function rateLimit(
+  key: string,
+  max: number,
+  windowSeconds: number,
+  opts?: { failClosed?: boolean },
+): Promise<boolean> {
   const { data, error } = await supabaseAdmin().rpc('check_rate_limit', {
     p_key: key,
     p_max: max,
     p_window_seconds: windowSeconds,
   })
-  if (error) return true
+  if (error) return !opts?.failClosed
   return data !== false
 }
