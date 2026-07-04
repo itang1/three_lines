@@ -68,8 +68,10 @@ Fill in `.env.local`:
 | `ESV_API_KEY` | ESV API key |
 | `BIBLE_API_KEY` | API.Bible key |
 | `RESEND_API_KEY` | Resend API key |
+| `RESEND_FROM` | Optional; verified reply-email sender. Defaults to the resend.dev sandbox sender (only delivers to the account owner) |
 | `NEXT_PUBLIC_SITE_URL` | Optional; defaults to `https://three-lines-sepia.vercel.app` |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Full service account JSON key (one line) for Sheets logging |
+| `GOOGLE_SHEETS_ID` | Optional; overrides the spreadsheet for feedback/visit logging |
 
 **8. Run**
 ```bash
