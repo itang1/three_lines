@@ -98,7 +98,13 @@ async function getSheetId(sheet: string, token: string): Promise<number | null> 
 // If row 1 already matches, does nothing. If the tab is empty, writes the header
 // in place. If row 1 holds other data (e.g. rows written before headers existed),
 // inserts a fresh top row and fills it, so existing data is preserved below.
+// Tabs whose header has been confirmed present in this container. Once verified,
+// ensureHeader can skip its Google round trip on every subsequent append, so the
+// hot path is just the (token-cached) append itself.
+const _headerEnsured = new Set<string>()
+
 async function ensureHeader(sheet: 'Feedback' | 'Visits', token: string): Promise<void> {
+  if (_headerEnsured.has(sheet)) return
   const headers = HEADERS[sheet]
   const range = encodeURIComponent(`${sheet}!A1:${colLetter(headers.length)}1`)
   const valuesUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}`
@@ -107,7 +113,7 @@ async function ensureHeader(sheet: 'Feedback' | 'Visits', token: string): Promis
   if (!res.ok) return
   const firstRow = ((await res.json() as { values?: string[][] }).values?.[0]) ?? []
 
-  if (headers.every((h, i) => firstRow[i] === h)) return
+  if (headers.every((h, i) => firstRow[i] === h)) { _headerEnsured.add(sheet); return }
 
   if (firstRow.length === 0) {
     // Empty tab: write the header directly into row 1.
