@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { clientIp, rateLimit } from '@/lib/rate-limit'
 import { appendRow } from '@/lib/google-sheets'
 import { requestGeo } from '@/lib/request-geo'
+import { afterResponse } from '@/lib/after-response'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const RATE_LIMIT_WINDOW_S = 10 * 60
@@ -61,12 +62,13 @@ export async function POST(req: Request) {
   // Feedback tab: Timestamp | Email | What worked | What could be improved | Anything else
   //   | IP | Country | Region | City | Timezone | Language | Page | Referrer
   //   | Session duration | Screen | Viewport | User Agent
-  await appendRow('Feedback', [
+  // Logged after the response so the form submit doesn't block on Google Sheets.
+  afterResponse(appendRow('Feedback', [
     ts, safeEmail || null, safeWorked || null, safeMissing || null, safeComments || null,
     ip, country, region, city, timezone, language,
     clip(page, 200), clip(referrer, 500), formatDuration(sessionMs),
     clip(screen, 20), clip(viewport, 20), clip(ua, 300),
-  ])
+  ]))
 
   return NextResponse.json({ ok: true })
 }

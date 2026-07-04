@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { clientIp, rateLimit } from '@/lib/rate-limit'
 import { appendRow } from '@/lib/google-sheets'
 import { requestGeo } from '@/lib/request-geo'
+import { afterResponse } from '@/lib/after-response'
 
 export async function POST(req: Request) {
   // One tracked visit per IP per 30 minutes to prevent floods
@@ -21,7 +22,8 @@ export async function POST(req: Request) {
   const ts = new Date().toISOString()
 
   // Visits tab: Timestamp | IP | Page | Country | Region | City | Timezone | Language | Referrer | User Agent
-  await appendRow('Visits', [ts, ip, page, country, region, city, timezone, language, referrer, ua])
+  // Logged after the response so the tracking beacon never blocks on Google.
+  afterResponse(appendRow('Visits', [ts, ip, page, country, region, city, timezone, language, referrer, ua]))
 
   return NextResponse.json({ ok: true })
 }
