@@ -117,7 +117,9 @@ async function notifyReplyAuthor(
     method: 'POST',
     headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      from: 'Three Lines <onboarding@resend.dev>',
+      // Overridable via env; the resend.dev sandbox sender only delivers to the
+      // account owner, so set RESEND_FROM to a verified domain in production.
+      from: process.env.RESEND_FROM || 'Three Lines <onboarding@resend.dev>',
       to: parentUser.email,
       subject: `${replierName} replied to your note`,
       text: `${replierName} replied to your note on ${passageRef}:\n\n"${replyContent}"\n\n${url}`,

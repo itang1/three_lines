@@ -10,7 +10,10 @@
 // The spreadsheet ID comes from the URL the owner shared.
 import crypto from 'crypto'
 
-const SPREADSHEET_ID = '1zk1Gz-0LUhgbovOxTH-uUSTelI1fteBOL3P2tVlSyAE'
+// Overridable via env; falls back to the original hardcoded sheet so existing
+// deployments keep working without new configuration.
+const SPREADSHEET_ID =
+  process.env.GOOGLE_SHEETS_ID?.trim() || '1zk1Gz-0LUhgbovOxTH-uUSTelI1fteBOL3P2tVlSyAE'
 
 // Module-level cache — survives within a serverless container instance so we
 // don't exchange a new token on every request when the function stays warm.
