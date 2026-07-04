@@ -336,6 +336,23 @@ export type Database = {
           lines: number
         }[]
       }
+      get_my_profile: {
+        Args: Record<string, never>
+        Returns: {
+          display_name: string
+          preferred_translation: string
+          notes_public_default: boolean
+          theme_track_label: string | null
+          is_admin: boolean
+        }[]
+      }
+      reply_like_counts: {
+        Args: { reply_ids: string[] }
+        Returns: {
+          comment_id: string
+          likes: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

@@ -105,21 +105,28 @@ export function useCommunity({ mode, bookId, communityScope, supabase, user }: P
 
     const replyIds = (data ?? []).map(r => r.id)
     if (replyIds.length === 0) return
-    const { data: likes } = await supabase.from('comment_likes')
-      .select('comment_id, user_id')
-      .in('comment_id', replyIds)
-    if (!likes) return
 
+    // Public counts come from an aggregate RPC (no user_id leaves the DB).
+    const { data: counts } = await supabase.rpc('reply_like_counts', { reply_ids: replyIds })
     setReplyLikeCounts(prev => {
       const next = { ...prev }
       for (const id of replyIds) next[id] = 0
-      for (const like of likes) next[like.comment_id] = (next[like.comment_id] ?? 0) + 1
+      for (const row of counts ?? []) next[row.comment_id] = Number(row.likes)
       return next
     })
+
+    // Which of these the viewer liked: the select policy returns own rows only.
+    let myLikes: string[] = []
+    if (user) {
+      const { data: mine } = await supabase.from('comment_likes')
+        .select('comment_id')
+        .in('comment_id', replyIds)
+      myLikes = (mine ?? []).map(r => r.comment_id)
+    }
     setLikedReplyIds(prev => {
       const next = new Set(prev)
       for (const id of replyIds) next.delete(id)
-      if (user) for (const like of likes) if (like.user_id === user.id) next.add(like.comment_id)
+      for (const id of myLikes) next.add(id)
       return next
     })
   }

@@ -51,11 +51,8 @@ export default function ProfileClient() {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.replace('/login'); return }
 
-      const [{ data: profile }, { data: notes }, { data: recent }] = await Promise.all([
-        supabase.from('profiles')
-          .select('display_name, notes_public_default')
-          .eq('id', user.id)
-          .single(),
+      const [{ data: profileRows }, { data: notes }, { data: recent }] = await Promise.all([
+        supabase.rpc('get_my_profile'),
         supabase.from('notes')
           .select('passage_ref')
           .eq('user_id', user.id)
@@ -68,6 +65,7 @@ export default function ProfileClient() {
           .limit(50),
       ])
 
+      const profile = profileRows?.[0]
       if (profile) {
         setDisplayName(profile.display_name)
         setNameInput(profile.display_name)

@@ -101,11 +101,9 @@ export default function NotebookClient({ book }: { book: Book }) {
   // Load profile preferences once the user is known
   useEffect(() => {
     if (!user) return
-    supabase.from('profiles')
-      .select('preferred_translation, notes_public_default, theme_track_label')
-      .eq('id', user.id)
-      .single()
-      .then(({ data: profile }) => {
+    supabase.rpc('get_my_profile')
+      .then(({ data }) => {
+        const profile = data?.[0]
         if (profile?.preferred_translation) setTranslation(profile.preferred_translation)
         if (profile?.notes_public_default != null) setNotesPublicDefault(profile.notes_public_default)
         if (profile?.theme_track_label) {

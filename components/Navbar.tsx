@@ -92,15 +92,15 @@ export default function Navbar() {
 
   useEffect(() => {
     if (!user) { setDisplayName(null); setIsAdmin(false); setNotifications([]); return }
-    supabase.from('profiles')
-      .select('display_name, is_admin')
-      .eq('id', user.id)
-      .single()
+    // get_my_profile returns the caller's own row only; is_admin and preferences
+    // are no longer client-readable off the base profiles table.
+    supabase.rpc('get_my_profile')
       .then(({ data }) => {
-        if (data) {
-          setDisplayName(data.display_name)
-          setIsAdmin(!!data.is_admin)
-          if (data.display_name === 'Anonymous') {
+        const profile = data?.[0]
+        if (profile) {
+          setDisplayName(profile.display_name)
+          setIsAdmin(!!profile.is_admin)
+          if (profile.display_name === 'Anonymous') {
             setShowNamePrompt(true)
           }
         }

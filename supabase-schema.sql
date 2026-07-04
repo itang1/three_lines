@@ -253,8 +253,12 @@ drop policy if exists "Auth users post comments" on comments;
 drop policy if exists "Users delete own comments" on comments;
 
 create policy "Anyone reads comments" on comments for select using (true);
-create policy "Auth users post comments" on comments for insert with check (auth.uid() = user_id);
 create policy "Users delete own comments" on comments for delete using (auth.uid() = user_id);
+-- No client insert policy: comments are written only by the service role in
+-- /api/comment, which applies the per-user hourly rate limit and the length
+-- cap. A client insert policy would let a token holder bypass both by writing
+-- to the table directly (and spoof parent_id, which is polymorphic). The
+-- explicit drop above removes it from databases created before this change.
 
 -- Profiles policies
 drop policy if exists "Anyone reads profiles" on profiles;
@@ -262,6 +266,68 @@ drop policy if exists "Users update own profile" on profiles;
 
 create policy "Anyone reads profiles" on profiles for select using (true);
 create policy "Users update own profile" on profiles for update using (auth.uid() = id);
+
+-- Privilege-escalation fix. RLS controls which ROW a user may update, not which
+-- COLUMNS, so the row-level policy above still let a signed-in user set their
+-- own is_admin = true and self-promote. Column-scoped grants are the
+-- authoritative control: revoke the table-wide UPDATE and re-grant only the
+-- fields the app actually edits. is_admin is intentionally excluded, so a
+-- direct `update profiles set is_admin = true` is rejected with permission
+-- denied before any row is touched.
+revoke update on profiles from anon, authenticated;
+grant update (display_name, preferred_translation, notes_public_default, theme_track_label)
+  on profiles to authenticated;
+
+-- Defense in depth: reject any change to is_admin from a non-privileged role,
+-- even if a future grant or policy change re-opened write access. The service
+-- role (server routes) and the SQL editor owner can still set it, so admins are
+-- still granted by running an update here or from a service-role context.
+create or replace function prevent_is_admin_change()
+returns trigger as $$
+begin
+  if new.is_admin is distinct from old.is_admin
+     and current_user not in ('service_role', 'postgres', 'supabase_admin') then
+    raise exception 'is_admin can only be changed by an administrator';
+  end if;
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists profiles_prevent_is_admin_change on profiles;
+create trigger profiles_prevent_is_admin_change
+  before update on profiles
+  for each row execute procedure prevent_is_admin_change();
+
+-- Column-scoped read access. display_name is public (it renders beside every
+-- community note), but is_admin and personal preferences must not be
+-- world-readable. RLS is row-level only, so restrict readable COLUMNS via
+-- grants: anyone may read id + display_name of any profile (this keeps the
+-- community-name embeds like notes -> profiles(display_name) working), and
+-- nothing else. A signed-in user reads their own full profile through the
+-- get_my_profile() RPC below. The row-level "Anyone reads profiles" policy
+-- stays; the column grant is what narrows the exposed surface.
+revoke select on profiles from anon, authenticated;
+grant select (id, display_name) on profiles to anon, authenticated;
+
+-- The signed-in user's own full profile (preferences + is_admin). Security
+-- definer so it can read the columns the client no longer has direct grants on,
+-- but it only ever returns the caller's own row, so nothing leaks.
+create or replace function get_my_profile()
+returns table (
+  display_name text,
+  preferred_translation text,
+  notes_public_default boolean,
+  theme_track_label text,
+  is_admin boolean
+)
+language sql stable security definer set search_path = public as $$
+  select display_name, preferred_translation, notes_public_default, theme_track_label, is_admin
+  from profiles
+  where id = auth.uid()
+$$;
+
+revoke execute on function get_my_profile() from public;
+grant execute on function get_my_profile() to authenticated;
 
 -- Passages policies
 drop policy if exists "Anyone reads passages" on passages;
@@ -294,11 +360,29 @@ create policy "Users read own bookmarks" on bookmarks for select using (auth.uid
 create policy "Users insert own bookmarks" on bookmarks for insert with check (auth.uid() = user_id);
 create policy "Users delete own bookmarks" on bookmarks for delete using (auth.uid() = user_id);
 
--- Comment likes policies
+-- Comment likes policies. Only your own likes are readable, so the UI can show
+-- what you liked without exposing who liked what. Public like COUNTS come from
+-- the reply_like_counts() RPC below, which aggregates and never returns user_id.
 drop policy if exists "Anyone reads comment likes" on comment_likes;
+drop policy if exists "Users read own comment likes" on comment_likes;
 drop policy if exists "Users insert own comment likes" on comment_likes;
 drop policy if exists "Users delete own comment likes" on comment_likes;
 
-create policy "Anyone reads comment likes" on comment_likes for select using (true);
+create policy "Users read own comment likes" on comment_likes for select using (auth.uid() = user_id);
 create policy "Users insert own comment likes" on comment_likes for insert with check (auth.uid() = user_id);
 create policy "Users delete own comment likes" on comment_likes for delete using (auth.uid() = user_id);
+
+-- Public like counts for a set of replies, aggregated server-side so user_id
+-- never leaves the DB. Safe to expose to everyone: returns only comment_id ->
+-- count. Security definer to read past the own-rows-only select policy above.
+create or replace function reply_like_counts(reply_ids uuid[])
+returns table (comment_id uuid, likes bigint)
+language sql stable security definer set search_path = public as $$
+  select comment_id, count(*)::bigint as likes
+  from comment_likes
+  where comment_id = any(reply_ids)
+  group by comment_id
+$$;
+
+revoke execute on function reply_like_counts(uuid[]) from public;
+grant execute on function reply_like_counts(uuid[]) to anon, authenticated;
