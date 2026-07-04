@@ -156,7 +156,7 @@ at module scope with non-null assertions. Meanwhile `app/api/comment/route.ts:8`
 
 ### NIT-level
 
-- **Dead file:** `docs/index.html` is a static meta-refresh redirect stub to the Vercel URL, unrelated to the Next.js app. If GitHub Pages is not in use, remove it to avoid a second, stale entry point. (Still present; confirm Pages is unused first.)
+- **Dead file (removed):** `docs/index.html` was a static meta-refresh redirect stub to the Vercel URL, unrelated to the Next.js app. Deleted. If you had GitHub Pages serving `/docs`, that redirect will now 404; the canonical site is Vercel.
 - **Hardcoded values (fixed):** `SPREADSHEET_ID` and the Resend `from` address are now overridable via `GOOGLE_SHEETS_ID` / `RESEND_FROM` with fallbacks.
 - **ESLint `exhaustive-deps` disabled widely** across hooks. Each suppression is defensible individually, but the blanket pattern hides genuine stale-closure risks. Consider annotating why per case, or refactoring the effects.
 - **Test coverage is thin:** only `lib/data.test.ts` and `lib/passage-ref.test.ts`. The security-sensitive surface (rate limiting, auth gating, RLS assumptions) has no tests.
@@ -191,24 +191,21 @@ DB-layer (re-run `supabase-schema.sql` in the Supabase SQL editor to apply):
 Code (already live on `main`):
 - **HIGH:** rate limiting rekeyed onto `x-real-ip` with a rightmost-XFF fallback (`lib/rate-limit.ts`), covered by `lib/rate-limit.test.ts`.
 - **MEDIUM:** service-role client consolidated into `lib/supabase-admin.ts` (replaces five module-level clients + two duplicated lazy getters).
-- **MEDIUM (partial):** Sheets header check cached per container so it no longer round-trips on every log write. Fully moving logging off the response path is deferred (see below).
-- **NIT:** `GOOGLE_SHEETS_ID` and `RESEND_FROM` env overrides (with fallbacks); `vitest.config.ts` `@/*` alias.
+- **MEDIUM:** Sheets logging moved off the request path via `@vercel/functions` `waitUntil` (`lib/after-response.ts`), after first caching the per-container header check.
+- **MEDIUM:** `parent_type` discriminator on `comments` replaces the polymorphic double-lookup; schema backfills and constrains existing rows.
+- **LOW:** shared `ProfileProvider` context dedupes the three `get_my_profile` fetches into one.
+- **LOW:** nonce-based CSP in `middleware.ts` drops `script-src 'unsafe-inline'`; verified at runtime (every script tag is nonced, all routes 200). Trade-off: reading `headers()` in the layout opts pages into dynamic rendering.
+- **LOW:** `/api/passage` now fails closed when the limiter errors, to protect the paid quota (`rateLimit(..., { failClosed: true })`).
+- **NIT:** `GOOGLE_SHEETS_ID` / `RESEND_FROM` env overrides; removed the dead `docs/index.html`; `vitest.config.ts` `@/*` alias.
 
 ### Remaining
 
-| # | Severity | Action | Effort | Why not yet |
-|---|---|---|---|---|
-| 1 | MEDIUM | Fully move Sheets logging off the request path | M | Needs Next's `after()` (added after 14.2.3) or a queue. Header-cache mitigation already shipped. |
-| 2 | LOW | Shared profile context to dedupe the 3 `get_my_profile` fetches | S | Marginal win; a shared provider must also handle post-mutation refresh, which needs runtime verification. |
-| 3 | LOW | Nonce-based CSP; drop `unsafe-inline` for scripts | M | Site-wide header change that can break the inline theme script and Next's inline styles; must be verified against a running deploy. |
-| 4 | LOW | Fail-closed (or low static cap) for `/api/passage` when the limiter errors | S | **Deliberately kept fail-open.** Fail-closed would make Supabase a hard dependency of the core reading path; a Supabase blip would break all passage loads. CDN caching already absorbs most quota risk. |
-| 5 | LOW | `parent_type` discriminator to replace the polymorphic double-lookup | M | Requires a data backfill of existing `comments.parent_id` rows, which cannot be verified without the live DB. |
-| 6 | NIT | Remove `docs/index.html`; broaden route/auth tests | S-M | `docs/index.html` may back a GitHub Pages redirect; confirm Pages is unused before deleting. Route tests need Supabase mocking. |
-
-Effort: S = under an hour, M = a few hours.
+Nothing outstanding from the original audit. Optional future follow-ups, none blocking:
+- Broaden automated tests around route auth/rate-limit gating (now feasible since the service-role client is centralized and mockable).
+- Reconsider the nonce-CSP dynamic-rendering trade-off if static caching of the marketing pages becomes important (e.g. move the no-flash theme logic to an external hashed script).
 
 ---
 
 ## 5. Bottom line
 
-The application is not "vibe-coded." It shows deliberate architecture: correct client/server data partitioning, real DB-backed rate limiting, RLS on every table, and careful input validation. All four database-layer security findings (admin self-promotion, bypassable comment inserts, over-broad profile reads, liker-identity exposure) plus the spoofable rate-limit key and the service-client consolidation are now fixed in code. What remains is optimization and hygiene, each deferred for a specific reason above (needs a newer Next API, a data backfill, or runtime verification), not firefighting.
+The application is not "vibe-coded." It shows deliberate architecture: correct client/server data partitioning, real DB-backed rate limiting, RLS on every table, and careful input validation. Every finding from this audit, from the critical admin self-promotion flaw down to the NIT-level cleanups, has been fixed in code. The DB-layer fixes require re-running `supabase-schema.sql`; everything else is live on `main`.
