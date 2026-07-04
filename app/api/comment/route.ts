@@ -21,6 +21,12 @@ export async function POST(req: Request) {
   if (!passage_ref || !track_id || typeof content !== 'string' || !content.trim()) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
+  // parent_type discriminates the polymorphic parent_id. Default to 'note' for
+  // older clients that only ever replied to notes; reject anything unexpected.
+  const parent_type: 'note' | 'comment' = body.parent_type === 'comment' ? 'comment' : 'note'
+  if (parent_id != null && body.parent_type != null && body.parent_type !== 'note' && body.parent_type !== 'comment') {
+    return NextResponse.json({ error: 'Invalid parent_type' }, { status: 400 })
+  }
   // Cap length so a single comment cannot store/broadcast an unbounded payload.
   // Mirrors NOTE_MAX_LENGTH (5000) and the comments DB check constraint.
   if (content.trim().length > 5000) {
@@ -45,13 +51,19 @@ export async function POST(req: Request) {
     track_id,
     content: content.trim(),
     parent_id: parent_id ?? null,
+    parent_type: parent_id ? parent_type : null,
   }).select('id').single()
 
   if (insertError) return NextResponse.json({ error: 'Insert failed' }, { status: 500 })
 
+  // Branch on parent_type instead of probing both tables: a reply to a note
+  // notifies the note author, a reply to a comment emails that comment's author.
   if (parent_id && inserted) {
-    createInAppNotification(parent_id, user.id, passage_ref, inserted.id).catch(console.error)
-    notifyReplyAuthor(parent_id, user.id, passage_ref, content.trim(), inserted.id).catch(console.error)
+    if (parent_type === 'comment') {
+      notifyReplyAuthor(parent_id, user.id, passage_ref, content.trim(), inserted.id).catch(console.error)
+    } else {
+      createInAppNotification(parent_id, user.id, passage_ref, inserted.id).catch(console.error)
+    }
   }
 
   return NextResponse.json({ ok: true })

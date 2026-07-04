@@ -99,6 +99,20 @@ alter table profiles add column if not exists theme_track_label text;
 alter table profiles add column if not exists is_admin boolean not null default false;
 alter table passages add column if not exists translation text not null default 'ESV';
 
+-- comments.parent_type discriminates the polymorphic parent_id ('note' when
+-- replying to a community note, 'comment' for a nested reply) so the reply
+-- handler no longer has to probe both tables to find out which it is.
+alter table comments add column if not exists parent_type text;
+
+-- Backfill existing replies: classify each by which table its parent_id is in.
+-- Runs only on rows not yet classified, so it is safe to re-run.
+update comments c set parent_type = 'note'
+  where c.parent_id is not null and c.parent_type is null
+    and exists (select 1 from notes n where n.id = c.parent_id);
+update comments c set parent_type = 'comment'
+  where c.parent_id is not null and c.parent_type is null
+    and exists (select 1 from comments p where p.id = c.parent_id);
+
 -- Constraints
 
 -- notes: composite unique key used for upserts in the app
@@ -132,6 +146,12 @@ alter table comments add constraint comments_content_length
 -- for a nested reply), so the old foreign key to comments(id) made every reply to
 -- a note fail. Drop it on existing databases.
 alter table comments drop constraint if exists comments_parent_id_fkey;
+
+-- parent_type may only be 'note' or 'comment' (or null for a top-level comment).
+-- NOT VALID so it does not fail on any legacy rows the backfill could not class.
+alter table comments drop constraint if exists comments_parent_type_check;
+alter table comments add constraint comments_parent_type_check
+  check (parent_type in ('note', 'comment')) not valid;
 
 -- Indexes
 

@@ -166,7 +166,8 @@ export function useCommunity({ mode, bookId, communityScope, supabase, user }: P
     const res = await fetch('/api/comment', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-      body: JSON.stringify({ passage_ref: passageRef, track_id: 'thoughts', content, parent_id: parentId }),
+      // Replies in the UI are always to a community note, hence parent_type 'note'.
+      body: JSON.stringify({ passage_ref: passageRef, track_id: 'thoughts', content, parent_id: parentId, parent_type: 'note' }),
     })
     if (!res.ok) return
     setReplyText(prev => ({ ...prev, [parentId]: '' }))
