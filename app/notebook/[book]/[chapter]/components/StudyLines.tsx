@@ -51,11 +51,11 @@ export default function StudyLines({
         return (
           <div
             key={t.id}
-            className={`flex items-stretch ${i > 0 ? 'border-t border-gray-100 dark:border-gray-800' : ''}`}
+            className={`flex items-start ${i > 0 ? 'border-t border-gray-100 dark:border-gray-800' : ''}`}
           >
             <div className="w-36 flex-shrink-0 flex items-center px-3 py-2 bg-gray-50 dark:bg-gray-800 border-r border-gray-100 dark:border-gray-700 self-stretch gap-1.5">
               <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: t.dot }} />
-              <span className="text-xs font-medium text-gray-500 leading-tight truncate">{t.label}</span>
+              <span className="text-xs font-medium text-gray-500 leading-tight">{t.label}</span>
             </div>
             <AutoTextarea
               aria-label={`${t.label}, ${label}`}
