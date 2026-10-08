@@ -16,8 +16,10 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
         run: |
+          url=$(printf '%s' "$NEXT_PUBLIC_SUPABASE_URL" | tr -d '[:space:]')
+          key=$(printf '%s' "$NEXT_PUBLIC_SUPABASE_ANON_KEY" | tr -d '[:space:]')
           curl --fail-with-body --silent --show-error \
             --retry 3 --retry-delay 10 \
-            "$NEXT_PUBLIC_SUPABASE_URL/rest/v1/comments?select=id&limit=1" \
-            -H "apikey: $NEXT_PUBLIC_SUPABASE_ANON_KEY" \
-            -H "Authorization: Bearer $NEXT_PUBLIC_SUPABASE_ANON_KEY"
+            "${url%/}/rest/v1/comments?select=id&limit=1" \
+            -H "apikey: $key" \
+            -H "Authorization: Bearer $key"
