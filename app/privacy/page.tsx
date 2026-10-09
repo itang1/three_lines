@@ -33,6 +33,18 @@ export default function PrivacyPage() {
         </section>
 
         <section>
+          <h2 className="text-lg font-serif font-medium text-gray-900 dark:text-gray-100 mb-2">Visits</h2>
+          <p>
+            To understand how people find the site, the first page you open in each visit is
+            recorded along with the site that linked you here, your browser, your IP address,
+            and your approximate location (country, region, and city). Page views are also
+            counted with <a href="https://www.goatcounter.com" className="text-gray-900 dark:text-gray-200 underline underline-offset-2 hover:text-gray-500 dark:hover:text-gray-400">GoatCounter</a>,
+            a privacy-friendly analytics service that uses no cookies and does not store your
+            IP address.
+          </p>
+        </section>
+
+        <section>
           <h2 className="text-lg font-serif font-medium text-gray-900 dark:text-gray-100 mb-2">Deleting your data</h2>
           <p>
             You can delete your account at any time from your <Link href="/profile" className="text-gray-900 dark:text-gray-200 underline underline-offset-2 hover:text-gray-500 dark:hover:text-gray-400">profile</Link> page.
